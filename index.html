@@ -337,7 +337,7 @@
         .modal {
             display: none;
             position: fixed;
-            z-index: 1;
+            z-index: 1001; /* Z-index alto para que esté por encima de todo */
             left: 0;
             top: 0;
             width: 100%;
@@ -501,7 +501,7 @@
     </div>
 
     <div id="mainContent">
-        <div class="top-right-balance">
+        <div class="top-right-balance" id="topRightBalance">
             Punto Actual: <span id="displaySaldoGuardado"></span> 
             (<span id="displayFechaSaldo"></span>)
             <button class="edit-balance-btn" id="btnEditBalance" title="Editar Punto Actual">
@@ -549,7 +549,7 @@
 
         <div id="agregarModal" class="modal">
             <div class="modal-content">
-                <span class="close" id="closeAgregarModal">×</span>
+                <span class="close" data-modal-id="agregarModal">×</span>
                 <h2>Agregar Datos</h2>
                 <form id="agregarForm">
                     <label for="tipo">Tipo:</label>
@@ -569,7 +569,7 @@
 
         <div id="editModal" class="modal">
             <div class="modal-content">
-                <span class="close" id="closeEditModal">×</span>
+                <span class="close" data-modal-id="editModal">×</span>
                 <h2>Editar Datos</h2>
                 <form id="editarForm">
                     <label for="editarTipo">Tipo:</label>
@@ -589,7 +589,7 @@
 
         <div id="editBalanceModal" class="modal">
             <div class="modal-content">
-                <span class="close" id="closeEditBalanceModal">×</span>
+                <span class="close" data-modal-id="editBalanceModal">×</span>
                 <h2>Editar Punto Actual</h2>
                 <form id="editBalanceForm">
                     <div style="margin-bottom: 15px;"> 
@@ -605,7 +605,7 @@
 
         <div id="importarModal" class="modal">
             <div class="modal-content">
-                <span class="close" id="closeImportarModal">×</span>
+                <span class="close" data-modal-id="importarModal">×</span>
                 <h2>Importar Datos desde Texto</h2>
                 <p>Pega aquí el texto de los datos de recaudación (ej. desde WhatsApp):</p>
                 <textarea id="importDataTextarea" rows="10" cols="50" placeholder="Pega el texto aquí..."></textarea><br><br>
@@ -625,16 +625,17 @@
         const passwordInput = document.getElementById('password');
         const loginMessage = document.getElementById('loginMessage');
         const mainContent = document.getElementById('mainContent');
+        const topRightBalance = document.getElementById('topRightBalance');
 
         function checkLogin() {
-            const storedLogin = sessionStorage.getItem('isLoggedIn'); // CAMBIO AQUÍ
+            const storedLogin = sessionStorage.getItem('isLoggedIn');
             if (storedLogin === 'true') {
                 loginOverlay.style.display = 'none';
                 mainContent.style.display = 'block';
-                initializeApp(); // Inicializa la aplicación si ya está logeado
+                initializeApp();
             } else {
-                loginOverlay.style.display = 'flex'; // Asegura que el login esté visible
-                mainContent.style.display = 'none'; // Asegura que el contenido esté oculto
+                loginOverlay.style.display = 'flex';
+                mainContent.style.display = 'none';
             }
         }
 
@@ -644,10 +645,10 @@
             const password = passwordInput.value;
 
             if (username === VALID_USERNAME && password === VALID_PASSWORD) {
-                sessionStorage.setItem('isLoggedIn', 'true'); // CAMBIO AQUÍ
+                sessionStorage.setItem('isLoggedIn', 'true');
                 loginOverlay.style.display = 'none';
                 mainContent.style.display = 'block';
-                initializeApp(); // Inicializa la aplicación después del login exitoso
+                initializeApp();
             } else {
                 loginMessage.textContent = 'Usuario o contraseña incorrectos. Intenta de nuevo.';
                 loginMessage.style.display = 'block';
@@ -673,32 +674,36 @@
         // Abre un pop-up (modal)
         function abrirModal(id) {
             document.getElementById(id).style.display = 'block';
+            topRightBalance.style.display = 'none'; // Oculta el balance cuando se abre un modal
         }
 
         // Cierra un pop-up (modal)
         function cerrarModal(id) {
             document.getElementById(id).style.display = 'none';
+            topRightBalance.style.display = 'flex'; // Muestra el balance cuando se cierra un modal
         }
 
         // Formatea la fecha pa' que se vea bonita (ej. 07/07/2025)
         function formatearFecha(fecha) {
-            if (!fecha) return 'N/A'; // Cambio: muestra N/A si no hay fecha
+            if (!fecha) return 'N/A';
             const opciones = { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Santiago' };
-            const fechaLocal = new Date(fecha + 'T12:00:00'); 
-            return fechaLocal.toLocaleDateString('es-ES', opciones);
+            // Asegurarse de que la fecha se interprete en la zona horaria local para evitar desajustes por UTC
+            const fechaObj = new Date(fecha + 'T12:00:00'); // Añadir una hora fija para evitar problemas con cambios de día por UTC
+            return fechaObj.toLocaleDateString('es-ES', opciones);
         }
 
         // Le pone formato de plata al número (ej. $1.234.567)
         function formatearNumero(numero) {
-            if (isNaN(numero) || numero === null) return '$0'; // Asegura que se muestre $0 si no es un número
+            if (isNaN(numero) || numero === null) return '$0';
             return `$${Math.ceil(numero).toLocaleString('es-ES').replace(/,/g, '.')}`;
         }
 
         // Pone el formato de plata en el campo de monto mientras escribes
         function formatearMonto(input) {
-            let valor = input.value.replace(/\./g, '').replace('$', '');
-            if (!isNaN(valor) && valor !== '') {
-                valor = parseFloat(valor).toLocaleString('es-ES').replace(/,/g, '.');
+            let valor = input.value.replace(/\D/g, ''); // Eliminar todo lo que no sea dígito
+            if (valor) {
+                // Convertir a número y luego a string para formatear con separadores de miles
+                valor = parseFloat(valor).toLocaleString('es-ES');
                 input.value = `$${valor}`;
             } else {
                 input.value = '';
@@ -716,8 +721,11 @@
             const saldoGuardadoJSON = localStorage.getItem('saldoInicial');
             if (saldoGuardadoJSON) {
                 saldoInicialGuardado = JSON.parse(saldoGuardadoJSON);
+            } else {
+                // Si no hay saldo guardado, inicializa con valores nulos o por defecto para evitar errores
+                saldoInicialGuardado = { fecha: null, monto: null };
             }
-            mostrarSaldoInicial(); // Siempre mostrar el punto guardado en la interfaz
+            mostrarSaldoInicial();
         }
 
         function guardarSaldoInicialDesdeModal() {
@@ -729,8 +737,8 @@
                 saldoInicialGuardado = { fecha, monto };
                 localStorage.setItem('saldoInicial', JSON.stringify(saldoInicialGuardado));
                 alert('¡Punto actual guardado con éxito!');
-                cerrarModal('editBalanceModal'); // Cierra el modal después de guardar
-                mostrarSaldoInicial(); // Actualiza la visualización
+                cerrarModal('editBalanceModal');
+                mostrarSaldoInicial();
             } else {
                 alert('¡Pucha! Ingresa una fecha y un monto válidos para el punto actual.');
             }
@@ -747,8 +755,8 @@
         // Abre el modal de edición de saldo y precarga los datos
         function abrirModalEditarSaldo() {
             document.getElementById('editBalanceDate').value = saldoInicialGuardado.fecha || '';
-            document.getElementById('editSaldoActual').value = saldoInicialGuardado.monto !== null ? saldoInicialGuardado.monto.toString() : '';
-            formatearMonto(document.getElementById('editSaldoActual')); // Aplicar formato al cargar
+            document.getElementById('editSaldoActual').value = saldoInicialGuardado.monto !== null ? String(saldoInicialGuardado.monto) : '';
+            formatearMonto(document.getElementById('editSaldoActual'));
             abrirModal('editBalanceModal');
         }
 
@@ -763,11 +771,9 @@
             const monto = parseFloat(montoInput.replace(/\./g, '').replace('$', ''));
 
             if (fecha && !isNaN(monto) && monto !== null) {
-                // Agregamos el dato al principio del array (unshift)
                 datos.unshift({ fecha, tipo, monto }); 
                 localStorage.setItem('datos', JSON.stringify(datos));
                 cerrarModal('agregarModal');
-                // Limpiamos el formulario después de agregar
                 document.getElementById('agregarForm').reset(); 
                 document.getElementById('monto').value = ''; 
                 actualizarTabla();
@@ -782,9 +788,8 @@
             const dato = datos[index];
             document.getElementById('editarTipo').value = dato.tipo;
             document.getElementById('editarFecha').value = dato.fecha;
-            // Quitamos el formato de plata pa' que sea más fácil editar
-            document.getElementById('editarMonto').value = dato.monto.toString(); 
-            formatearMonto(document.getElementById('editarMonto')); // Aplicamos el formato al principio
+            document.getElementById('editarMonto').value = String(dato.monto); 
+            formatearMonto(document.getElementById('editarMonto'));
             abrirModal('editModal');
         }
 
@@ -808,7 +813,7 @@
         // Borra un dato de la lista
         function borrarDato(index) {
             if (confirm('¿Estás seguro que quieres borrar este dato? No hay vuelta atrás, compadre.')) {
-                datos.splice(index, 1); // Borra el elemento por su posición
+                datos.splice(index, 1);
                 localStorage.setItem('datos', JSON.stringify(datos));
                 actualizarTabla();
             }
@@ -816,13 +821,11 @@
 
         // --- Pa' copiar los datos del día (Si no funciona una forma, prueba la otra) ---
         function copiarDatosDelDia(fecha) {
-            // Pillamos los datos de esa fecha nomás
             const datosDelDia = datos.filter(dato => dato.fecha === fecha);
 
             let textoACopiar = `Datos de Recaudación del Día ${formatearFecha(fecha)}:\n`;
             let totalDia = 0;
 
-            // Agrupamos por tipo pa' que el resumen quede bueno
             const totalesPorTipo = {};
             datosDelDia.forEach(dato => {
                 if (!totalesPorTipo[dato.tipo]) {
@@ -832,14 +835,12 @@
                 totalDia += dato.monto;
             });
 
-            // Agregamos los tipos al texto que vamos a copiar
             for (const tipo in totalesPorTipo) {
                 textoACopiar += `- ${tipo}: ${formatearNumero(totalesPorTipo[tipo])}\n`;
             }
 
             textoACopiar += `Total del Día: ${formatearNumero(totalDia)}\n`;
 
-            // Intentamos copiar usando la forma moderna
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(textoACopiar)
                     .then(() => {
@@ -847,16 +848,13 @@
                     })
                     .catch(err => {
                         console.error('Error al copiar con navigator.clipboard:', err);
-                        // Si falla, usamos la forma más antigua
                         copiarTextoConFallback(textoACopiar);
                     });
             } else {
-                // Si la forma moderna no está, vamos directo a la antigua
                 copiarTextoConFallback(textoACopiar);
             }
         }
 
-        // Función "salvavidas" pa' copiar texto al portapapeles
         function copiarTextoConFallback(texto) {
             const tempTextArea = document.createElement('textarea');
             tempTextArea.value = texto;
@@ -875,7 +873,7 @@
 
         // --- Funciones pa' importar datos (NUEVAS) ---
         function abrirModalImportar() {
-            document.getElementById('importDataTextarea').value = ''; // Limpiamos el cajón de texto
+            document.getElementById('importDataTextarea').value = '';
             abrirModal('importarModal');
         }
 
@@ -889,14 +887,11 @@
             const nuevasEntradas = parsearTextoRecaudacion(texto);
 
             if (nuevasEntradas.length > 0) {
-                // Pillamos la fecha del primer dato importado (asumimos que todos son del mismo día)
                 const fechaImportada = nuevasEntradas[0].fecha; 
                 
-                // Borramos los datos que ya teníamos de esa fecha pa' no duplicar
                 datos = datos.filter(dato => dato.fecha !== fechaImportada);
 
-                // Agregamos los datos nuevos al principio del array
-                nuevasEntradas.reverse().forEach(nuevaEntrada => { // Revertir pa' que queden en el orden correcto al principio
+                nuevasEntradas.reverse().forEach(nuevaEntrada => {
                     datos.unshift(nuevaEntrada);
                 });
                 
@@ -909,30 +904,25 @@
             }
         }
 
-        // Función pa' "desarmar" el texto pegado y sacar los datos
         function parsearTextoRecaudacion(texto) {
             const lineas = texto.split('\n').map(linea => linea.trim()).filter(linea => linea !== '');
             const entradasEncontradas = [];
             let fechaActual = null;
 
-            // Patrón pa' encontrar la fecha
             const regexFecha = /Datos de Recaudación del Día (\d{2}\/\d{2}\/\d{4}):/;
-            // Patrón pa' encontrar los montos y tipos (ahora acepta "Otras" u "Otros")
             const regexMonto = /^- (Máquinas|Mesas|Otras|Otros):\s*\$?([\d.,]+)/; 
 
             for (const linea of lineas) {
                 const matchFecha = linea.match(regexFecha);
                 if (matchFecha) {
                     const fechaParts = matchFecha[1].split('/');
-                    // Convertimos a formato AAAA-MM-DD pa' que funcione bien
                     fechaActual = `${fechaParts[2]}-${fechaParts[1]}-${fechaParts[0]}`;
-                    continue; // Seguimos a la siguiente línea
+                    continue;
                 }
 
                 const matchMonto = linea.match(regexMonto);
                 if (matchMonto && fechaActual) {
                     const tipo = matchMonto[1];
-                    // Sacamos los puntos de miles y cambiamos comas por puntos pa' que JavaScript lo entienda como número
                     const monto = parseFloat(matchMonto[2].replace(/\./g, '').replace(/,/g, '.')); 
                     if (!isNaN(monto)) {
                         entradasEncontradas.push({
@@ -948,12 +938,10 @@
 
         // --- Funciones pa' mostrar y filtrar la tabla ---
 
-        // Genera el código HTML de la tabla con los datos que le pasemos
         function generarTablaHTML(datosParaTabla, totalGlobal) {
             const tablaContainer = document.getElementById('tablaContainer');
-            tablaContainer.innerHTML = ''; // Borramos lo que hay ahora en la tabla
+            tablaContainer.innerHTML = '';
 
-            // Agrupamos los datos por fecha
             const datosPorFecha = datosParaTabla.reduce((acc, dato) => {
                 if (!acc[dato.fecha]) {
                     acc[dato.fecha] = [];
@@ -962,16 +950,14 @@
                 return acc;
             }, {});
 
-            // Ordenamos las fechas según lo que eligió el usuario (ascendente o descendente)
             let fechasOrdenadas = Object.keys(datosPorFecha);
             if (ordenFecha === 'asc') {
-                fechasOrdenadas.sort((a, b) => new Date(a) - new Date(b)); // De la más antigua a la más nueva
+                fechasOrdenadas.sort((a, b) => new Date(a) - new Date(b));
             } else {
-                fechasOrdenadas.sort((a, b) => new Date(b) - new Date(a)); // De la más nueva a la más antigua
+                fechasOrdenadas.sort((a, b) => new Date(b) - new Date(a));
             }
 
             fechasOrdenadas.forEach(fecha => {
-                // Si la tabla está "mini", solo mostramos la fecha que corresponda al principio de la lista ordenada
                 if (minimizado && fecha !== fechasOrdenadas[0]) {
                     return;
                 }
@@ -991,9 +977,7 @@
                 `;
 
                 let totalDia = 0;
-                // Llenamos la tabla con los datos de esa fecha
                 datosPorFecha[fecha].forEach((dato) => {
-                    // Pillamos el índice original pa' poder borrar/editar bien
                     const actualIndex = datos.findIndex(d => 
                         d.fecha === dato.fecha && d.tipo === dato.tipo && d.monto === dato.monto
                     );
@@ -1026,19 +1010,16 @@
                 tablaContainer.appendChild(tabla);
             });
 
-            // Mostramos el total recaudado (puede ser el total general o el total del filtro)
             document.getElementById('totalRecaudado').textContent = formatearNumero(totalGlobal);
         }
 
-        // Actualiza la tabla con los datos actuales o la última fecha si está "mini"
         function actualizarTabla() {
-            limpiarDatosInvalidos(); // Nos aseguramos que los datos estén limpios
+            limpiarDatosInvalidos();
             
             const totalRecaudadoGlobal = datos.reduce((acc, dato) => acc + dato.monto, 0);
             
             generarTablaHTML(datos, totalRecaudadoGlobal);
             
-            // Controla la visibilidad de los filtros al actualizar la tabla
             const controlsContainer = document.getElementById('controlsContainer');
             if (minimizado) {
                 controlsContainer.classList.remove('controls-expanded');
@@ -1047,7 +1028,6 @@
             }
         }
 
-        // Cambia la vista de la tabla y los filtros entre "mini" y completa
         function minimizarTabla() {
             minimizado = !minimizado;
             const btn = document.getElementById('btnMinimizarTabla');
@@ -1060,38 +1040,33 @@
                 btn.textContent = 'Minimizar Tabla';
                 controlsContainer.classList.add('controls-expanded');
             }
-            actualizarTabla(); // Vuelve a renderizar la tabla para aplicar el filtro de minimizado
+            actualizarTabla();
         }
 
-        // Filtra la tabla por fechas específicas (separadas por comas)
         function filtrarTabla() {
             const filtroFechasInput = document.getElementById('filtroFechas').value.trim();
             const filtroFechaInicio = document.getElementById('filtroFechaInicio').value;
             const filtroFechaFin = document.getElementById('filtroFechaFin').value;
 
-            // Si hay filtros de rango, esos van primero
             if (filtroFechaInicio && filtroFechaFin) {
                 filtrarPorRango();
                 return;
             }
 
-            // Si hay filtro por fechas específicas
             if (filtroFechasInput) {
                 const fechasAFiltrar = filtroFechasInput.split(',').map(fecha => fecha.trim()).filter(f => f !== '');
                 const datosFiltrados = datos.filter(dato => fechasAFiltrar.includes(dato.fecha));
                 const totalParcial = datosFiltrados.reduce((acc, dato) => acc + dato.monto, 0);
                 generarTablaHTML(datosFiltrados, totalParcial);
             } else {
-                actualizarTabla(); // Si no hay filtro, mostramos todo
+                actualizarTabla();
             }
         }
 
-        // Filtra la tabla por un rango de fechas
         function filtrarPorRango() {
             const filtroFechaInicio = document.getElementById('filtroFechaInicio').value;
             const filtroFechaFin = document.getElementById('filtroFechaFin').value;
 
-            // Si hay filtro por fechas específicas, ese tiene prioridad
             const filtroFechasInput = document.getElementById('filtroFechas').value.trim();
             if (filtroFechasInput) {
                 filtrarTabla();
@@ -1103,11 +1078,10 @@
                 const totalParcial = datosFiltrados.reduce((acc, dato) => acc + dato.monto, 0);
                 generarTablaHTML(datosFiltrados, totalParcial);
             } else {
-                actualizarTabla(); // Si no hay rango completo, mostramos todo
+                actualizarTabla();
             }
         }
 
-        // Reinicia todos los filtros y actualiza la tabla
         function reiniciarFiltros() {
             document.getElementById('filtroFechas').value = '';
             document.getElementById('filtroFechaInicio').value = '';
@@ -1118,13 +1092,11 @@
             actualizarTabla();
         }
 
-        // Función pa' ordenar los datos por fecha
         function ordenarPorFecha(orden) {
             ordenFecha = orden;
             actualizarTabla();
         }
 
-        // Función pa' ir al principio de la página
         function scrollToTop() {
             window.scrollTo({
                 top: 0,
@@ -1132,7 +1104,6 @@
             });
         }
 
-        // Función pa' ir a donde está la tabla
         function scrollToData() {
             const tableContainer = document.getElementById('tableContainerScrollTarget');
             tableContainer.scrollIntoView({
@@ -1140,7 +1111,6 @@
             });
         }
 
-        // --- Manejo del botón flotante de "Ir al inicio" (mostrar/ocultar) ---
         window.addEventListener('scroll', () => {
             const scrollToTopBtn = document.getElementById('scrollToTopBtn');
             if (window.scrollY > 200) { 
@@ -1153,63 +1123,64 @@
 
         // --- Lo que pasa cuando la página carga ---
         function initializeApp() {
-            // Cargamos los datos guardados al principio
             datos = JSON.parse(localStorage.getItem('datos')) || [];
-            cargarSaldoInicial(); // Cargar el punto inicial al inicio
+            cargarSaldoInicial();
 
-            // Al cargar, forzamos el estado minimizado y actualizamos la tabla
             minimizado = true; 
             document.getElementById('btnMinimizarTabla').textContent = 'Maximizar Tabla'; 
             actualizarTabla(); 
             
             // Eventos pa' los botones y formularios
             document.getElementById('btnAgregarDato').addEventListener('click', () => {
-                const today = new Date().toISOString().split('T')[0];
-                document.getElementById('fecha').value = today; // Ponemos la fecha de hoy por defecto
+                const today = new Date();
+                // Formatear la fecha para input type="date" (YYYY-MM-DD)
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0'); // Meses son de 0 a 11
+                const day = String(today.getDate()).padStart(2, '0');
+                document.getElementById('fecha').value = `${year}-${month}-${day}`; 
                 abrirModal('agregarModal');
             });
-            document.getElementById('closeAgregarModal').addEventListener('click', () => cerrarModal('agregarModal'));
+
+            // Usar delegación de eventos para los botones de cerrar modales
+            document.querySelectorAll('.modal .close').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const modalId = event.target.dataset.modalId;
+                    cerrarModal(modalId);
+                });
+            });
+
             document.getElementById('agregarForm').addEventListener('submit', (e) => {
                 e.preventDefault(); 
                 agregarDatos();
             });
 
-            document.getElementById('closeEditModal').addEventListener('click', () => cerrarModal('editModal'));
             document.getElementById('editarForm').addEventListener('submit', (e) => {
                 e.preventDefault(); 
                 guardarEdicion();
             });
 
-            // Eventos pa' los botones de importar
             document.getElementById('btnImportarDatos').addEventListener('click', abrirModalImportar);
-            document.getElementById('closeImportarModal').addEventListener('click', () => cerrarModal('importarModal'));
             document.getElementById('btnProcesarImportacion').addEventListener('click', procesarImportacion);
 
-            // Eventos para el nuevo modal de punto actual
             document.getElementById('btnEditBalance').addEventListener('click', abrirModalEditarSaldo);
-            document.getElementById('closeEditBalanceModal').addEventListener('click', () => cerrarModal('editBalanceModal'));
             document.getElementById('editBalanceForm').addEventListener('submit', (e) => {
                 e.preventDefault();
                 guardarSaldoInicialDesdeModal();
             });
 
-            // Eventos pa' los controles de la tabla (minimizar, filtrar)
             document.getElementById('btnMinimizarTabla').addEventListener('click', minimizarTabla);
             document.getElementById('filtroFechas').addEventListener('input', filtrarTabla);
             document.getElementById('filtroFechaInicio').addEventListener('change', filtrarPorRango);
             document.getElementById('filtroFechaFin').addEventListener('change', filtrarPorRango);
             document.getElementById('btnReiniciarFiltros').addEventListener('click', reiniciarFiltros);
 
-            // Eventos pa' los nuevos botones de ordenar
             document.getElementById('btnOrdenarFechaAsc').addEventListener('click', () => ordenarPorFecha('asc'));
             document.getElementById('btnOrdenarFechaDesc').addEventListener('click', () => ordenarPorFecha('desc'));
 
-            // Eventos pa' los nuevos botones de desplazamiento
             document.getElementById('scrollToTopBtn').addEventListener('click', scrollToTop);
             document.getElementById('scrollToDataBtn').addEventListener('click', scrollToData);
         }
 
-        // Llama a la función de chequeo de login cuando se carga el DOM
         document.addEventListener('DOMContentLoaded', checkLogin);
     </script>
 </body>
