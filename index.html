@@ -158,10 +158,27 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="w-full bg-primary text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-primary/30 active:scale-95 transition-all uppercase tracking-widest">
-                        Guardar Registro
-                    </button>
+                    <div class="grid grid-cols-1 gap-3">
+                        <button type="submit" class="w-full bg-primary text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-primary/30 active:scale-95 transition-all uppercase tracking-widest">
+                            Guardar Registro
+                        </button>
+                        <button type="button" id="btnGuardarBorrador" class="w-full bg-slate-100 dark:bg-background-dark text-slate-600 dark:text-slate-400 py-4 rounded-2xl font-black text-xs border border-border-dark active:scale-95 transition-all uppercase tracking-widest">
+                            Guardar en Pendientes (Ver Luego)
+                        </button>
+                    </div>
                 </form>
+            </div>
+        </section>
+
+        <!-- PANEL: BORRADORES (NUEVO) -->
+        <section id="borradoresPanel" class="content-panel p-4 space-y-4">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-black uppercase tracking-tighter">Registros Pendientes</h3>
+                <span id="countBorradores" class="bg-accent-amber text-black px-3 py-1 rounded-full text-[10px] font-black">0</span>
+            </div>
+            <p class="text-xs text-slate-500 mb-6">Estos registros están guardados en tu dispositivo y no se han subido a la nube.</p>
+            <div id="borradoresContainer" class="space-y-4">
+                <!-- Borradores generados por JS -->
             </div>
         </section>
 
@@ -221,21 +238,26 @@
 
     <!-- TAB BAR (iOS STYLE) -->
     <nav class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-background-dark/90 backdrop-blur-xl border-t border-slate-200 dark:border-border-dark px-6 pb-10 pt-4 z-50">
-        <div class="flex items-center justify-between max-w-2xl mx-auto">
-            <button class="nav-btn flex flex-col items-center gap-1 text-primary transition-all scale-110" data-target="agregarPanel">
+        <div class="flex items-center justify-between max-w-2xl mx-auto overflow-x-auto no-scrollbar gap-8">
+            <button class="nav-btn flex flex-col items-center gap-1 text-primary transition-all scale-110 shrink-0" data-target="agregarPanel">
                 <span class="material-symbols-outlined font-bold">add_box</span>
                 <span class="text-[9px] font-black uppercase tracking-tighter">Agregar</span>
             </button>
-            <button class="nav-btn flex flex-col items-center gap-1 text-slate-400" data-target="historialPanel">
+            <button class="nav-btn flex flex-col items-center gap-1 text-slate-400 shrink-0 relative" data-target="borradoresPanel">
+                <span class="material-symbols-outlined font-bold">pending_actions</span>
+                <span class="text-[9px] font-black uppercase tracking-tighter">Pendientes</span>
+                <span id="ind-borradores" class="absolute -top-1 -right-1 size-2.5 bg-accent-amber rounded-full border-2 border-background-dark hidden"></span>
+            </button>
+            <button class="nav-btn flex flex-col items-center gap-1 text-slate-400 shrink-0" data-target="historialPanel">
                 <span class="material-symbols-outlined font-bold">history</span>
                 <span class="text-[9px] font-black uppercase tracking-tighter">Historial</span>
             </button>
-            <button class="nav-btn flex flex-col items-center gap-1 text-slate-400 relative" data-target="notasPanel">
+            <button class="nav-btn flex flex-col items-center gap-1 text-slate-400 shrink-0 relative" data-target="notasPanel">
                 <span class="material-symbols-outlined font-bold">forum</span>
                 <span class="text-[9px] font-black uppercase tracking-tighter">Notas</span>
                 <span id="ind-notas" class="absolute -top-1 -right-1 size-2.5 bg-accent-amber rounded-full border-2 border-background-dark hidden"></span>
             </button>
-            <button class="nav-btn flex flex-col items-center gap-1 text-slate-400" data-target="importarPanel">
+            <button class="nav-btn flex flex-col items-center gap-1 text-slate-400 shrink-0" data-target="importarPanel">
                 <span class="material-symbols-outlined font-bold">upload_file</span>
                 <span class="text-[9px] font-black uppercase tracking-tighter">Importar</span>
             </button>
@@ -283,6 +305,7 @@
 
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz_kCb4aEe437zHGbRqnjCibw1NtAqfCbTNmsVPn9jaZOPBFaZ6-FwmiTLqVxq39X1P/exec';
         let datos = [], notes = [], divisores = {}, editIndex = -1, minimizado = true, sortOrder = 'desc', currentPanel = 'agregarPanel', currentUser = '';
+        let borradores = JSON.parse(localStorage.getItem('borradores_locales') || '[]');
 
         // --- 2. FUNCIONES UI ORIGINALES ---
         function showToast(msg, type = 'success') {
@@ -428,6 +451,7 @@
             });
             document.getElementById('tot-div').textContent = fNum(totalGeneralPtos);
             renderNotes();
+            renderBorradores();
         }
 
         function renderNotes() {
@@ -450,6 +474,45 @@
                     <p class="text-sm text-slate-300 leading-relaxed">${n.mensaje}</p>
                 </div>`;
             }).join('');
+        }
+
+        // NUEVA FUNCIÓN: RENDERIZAR BORRADORES
+        function renderBorradores() {
+            const container = document.getElementById('borradoresContainer');
+            const count = document.getElementById('countBorradores');
+            const indicator = document.getElementById('ind-borradores');
+            
+            container.innerHTML = '';
+            count.textContent = borradores.length;
+            
+            if(borradores.length > 0) indicator.classList.remove('hidden');
+            else indicator.classList.add('hidden');
+
+            if(borradores.length === 0) {
+                container.innerHTML = `
+                <div class="text-center py-12 opacity-30">
+                    <span class="material-symbols-outlined text-6xl">inventory_2</span>
+                    <p class="text-xs font-black uppercase mt-4">No hay pendientes</p>
+                </div>`;
+                return;
+            }
+
+            borradores.forEach((b, idx) => {
+                container.innerHTML += `
+                <div class="bg-white dark:bg-surface-dark p-5 rounded-3xl border border-border-dark flex justify-between items-center">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-[9px] font-black uppercase bg-primary/20 text-primary px-2 py-0.5 rounded-full">${b.tipo}</span>
+                            <span class="text-[9px] font-black uppercase text-slate-500">${fFec(b.fecha)}</span>
+                        </div>
+                        <p class="text-xl font-black">${fNum(b.monto)}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="subirBorrador(${idx})" class="size-10 rounded-xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20"><span class="material-symbols-outlined">cloud_upload</span></button>
+                        <button onclick="borrarBorrador(${idx})" class="size-10 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center"><span class="material-symbols-outlined">delete</span></button>
+                    </div>
+                </div>`;
+            });
         }
 
         // --- 6. ACCIONES ORIGINALES RESTAURADAS ---
@@ -485,6 +548,43 @@
                 showToast("Registro eliminado");
                 await cargar();
             }
+        };
+
+        // NUEVAS ACCIONES PARA BORRADORES
+        document.getElementById('btnGuardarBorrador').onclick = () => {
+            const mStr = document.getElementById('monto').value.replace(/\./g,'');
+            if(!mStr) { showToast("Ingrese un monto", "danger"); return; }
+            
+            const b = {
+                tipo: document.querySelector('input[name="tipo"]:checked').value,
+                fecha: document.getElementById('fecha').value,
+                monto: parseInt(mStr)
+            };
+            
+            borradores.push(b);
+            localStorage.setItem('borradores_locales', JSON.stringify(borradores));
+            document.getElementById('monto').value = '';
+            showToast("Guardado en pendientes");
+            renderBorradores();
+        };
+
+        window.borrarBorrador = (idx) => {
+            borradores.splice(idx, 1);
+            localStorage.setItem('borradores_locales', JSON.stringify(borradores));
+            renderBorradores();
+        };
+
+        window.subirBorrador = async (idx) => {
+            const b = borradores[idx];
+            showLoad(true, "Subiendo...");
+            try {
+                await post({ action: 'add', ...b });
+                borradores.splice(idx, 1);
+                localStorage.setItem('borradores_locales', JSON.stringify(borradores));
+                showToast("Sincronizado con éxito");
+                await cargar();
+            } catch(e) { showToast("Error al subir", "danger"); }
+            finally { showLoad(false); }
         };
 
         document.getElementById('btnExport').onclick = () => {
