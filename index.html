@@ -51,7 +51,7 @@
     <div id="globalLoader" class="fixed inset-0 bg-background-dark/80 backdrop-blur-md hidden items-center justify-center z-[10000]">
         <div class="text-center">
             <div class="size-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto"></div>
-            <p id="loaderMsg" class="mt-4 text-primary font-bold text-xs uppercase tracking-widest text-white">Sincronizando...</p>
+            <p id="loaderMsg" class="mt-4 text-primary font-bold text-xs uppercase tracking-widest text-white text-center">Sincronizando...</p>
         </div>
     </div>
 
@@ -62,14 +62,16 @@
                 <span class="material-symbols-outlined text-4xl">shield_person</span>
             </div>
             <h2 class="text-2xl font-black mb-8 tracking-tight text-white uppercase">Acceso Profesional</h2>
-            <form id="loginForm" class="space-y-4">
+            <form id="loginForm" class="space-y-4 text-left">
+                <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Seleccione Usuario</label>
                 <select id="username" class="w-full bg-background-dark border-border-dark rounded-xl py-4 px-5 text-white font-bold focus:ring-2 focus:ring-primary outline-none">
                     <option value="ADMIN">ADMINISTRADOR</option>
                     <option value="MESAS">USUARIO: MESAS</option>
                     <option value="MAQUINAS">USUARIO: MÁQUINAS</option>
                 </select>
-                <input type="password" id="password" placeholder="Clave de Seguridad" class="w-full bg-background-dark border-border-dark rounded-xl py-4 px-5 text-white focus:ring-2 focus:ring-primary outline-none">
-                <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-white py-4 rounded-xl font-black transition-all active:scale-95 shadow-xl shadow-primary/20">INGRESAR AL PANEL</button>
+                <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Clave</label>
+                <input type="password" id="password" placeholder="••••" class="w-full bg-background-dark border-border-dark rounded-xl py-4 px-5 text-white focus:ring-2 focus:ring-primary outline-none">
+                <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-white py-4 rounded-xl font-black transition-all active:scale-95 shadow-xl shadow-primary/20 mt-4">INGRESAR AL PANEL</button>
             </form>
         </div>
     </div>
@@ -92,7 +94,7 @@
 
     <main id="mainContent" class="max-w-2xl mx-auto pb-32 hidden">
         
-        <!-- DASHBOARD ACTUAL -->
+        <!-- DASHBOARD -->
         <div class="p-4 grid grid-cols-2 gap-4">
             <div class="bg-white dark:bg-surface-dark p-5 rounded-3xl border border-slate-200 dark:border-border-dark shadow-sm text-center">
                 <span class="text-[10px] text-slate-500 font-black uppercase">Recaudación Mes</span>
@@ -104,35 +106,35 @@
             </div>
         </div>
 
-        <!-- PANEL AGREGAR -->
+        <!-- AGREGAR -->
         <section id="agregarPanel" class="content-panel active p-4 space-y-6">
             <div class="bg-white dark:bg-surface-dark p-8 rounded-[2.5rem] border border-slate-200 dark:border-border-dark shadow-xl">
-                <h3 class="text-lg font-black mb-6 flex items-center gap-3 text-white uppercase text-center justify-center">
-                    <span class="material-symbols-outlined text-primary">add_circle</span> Nuevo Registro
+                <h3 class="text-lg font-black mb-6 flex items-center gap-3 text-white uppercase justify-center">
+                    <span class="material-symbols-outlined text-primary text-3xl">add_circle</span> Nuevo Registro
                 </h3>
                 <form id="agregarForm" class="space-y-5">
                     <div class="grid grid-cols-3 gap-2">
                         <label class="cursor-pointer">
                             <input type="radio" name="tipo" value="Máquinas" checked class="peer hidden">
                             <div class="peer-checked:bg-primary peer-checked:text-white bg-slate-100 dark:bg-background-dark p-3 rounded-xl text-center transition-all border border-transparent">
-                                <span class="text-[10px] font-black uppercase text-[8px]">Máquinas</span>
+                                <span class="text-[10px] font-black uppercase">Máquinas</span>
                             </div>
                         </label>
                         <label class="cursor-pointer">
                             <input type="radio" name="tipo" value="Mesas" class="peer hidden">
                             <div class="peer-checked:bg-primary peer-checked:text-white bg-slate-100 dark:bg-background-dark p-3 rounded-xl text-center transition-all border border-transparent">
-                                <span class="text-[10px] font-black uppercase text-[8px]">Mesas</span>
+                                <span class="text-[10px] font-black uppercase">Mesas</span>
                             </div>
                         </label>
                         <label class="cursor-pointer">
                             <input type="radio" name="tipo" value="Otras" class="peer hidden">
                             <div class="peer-checked:bg-primary peer-checked:text-white bg-slate-100 dark:bg-background-dark p-3 rounded-xl text-center transition-all border border-transparent">
-                                <span class="text-[10px] font-black uppercase text-[8px]">Otras</span>
+                                <span class="text-[10px] font-black uppercase">Otras</span>
                             </div>
                         </label>
                     </div>
                     <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Fecha</label>
+                        <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Fecha de Ingreso</label>
                         <input type="date" id="fecha" required class="w-full bg-slate-50 dark:bg-background-dark border-slate-200 dark:border-border-dark rounded-xl py-3 text-white font-bold outline-none">
                     </div>
                     <div class="space-y-1">
@@ -144,7 +146,7 @@
             </div>
         </section>
 
-        <!-- PANEL HISTORIAL -->
+        <!-- HISTORIAL -->
         <section id="historialPanel" class="content-panel p-4 space-y-4">
             <div class="flex flex-wrap gap-2 mb-4">
                 <button id="btnMin" class="bg-white dark:bg-surface-dark border border-border-dark px-4 py-2 rounded-full text-[10px] font-black uppercase text-white">Expandir / Min</button>
@@ -153,6 +155,7 @@
 
             <div id="tablaContainer" class="space-y-6"></div>
 
+            <!-- GESTIÓN -->
             <div class="mt-12 p-6 bg-white dark:bg-surface-dark rounded-[2rem] border border-border-dark space-y-6">
                 <h4 class="text-[10px] font-black uppercase text-slate-400 flex items-center gap-2">
                     <span class="material-symbols-outlined text-sm">settings_suggest</span> Mantenimiento y Backups
@@ -160,11 +163,11 @@
                 <div class="grid grid-cols-2 gap-3">
                     <button id="btnExportarJson" class="flex flex-col items-center p-4 bg-primary/10 rounded-2xl border border-primary/20 text-primary active:scale-95 transition-all">
                         <span class="material-symbols-outlined mb-1 text-2xl">file_download</span>
-                        <span class="text-[9px] font-black uppercase">Exportar Backup</span>
+                        <span class="text-[9px] font-black uppercase text-center leading-tight">Exportar JSON</span>
                     </button>
                     <button id="btnImportarTrigger" class="flex flex-col items-center p-4 bg-accent-amber/10 rounded-2xl border border-accent-amber/20 text-accent-amber active:scale-95 transition-all">
                         <span class="material-symbols-outlined mb-1 text-2xl">file_upload</span>
-                        <span class="text-[9px] font-black uppercase">Importar Backup</span>
+                        <span class="text-[9px] font-black uppercase text-center leading-tight">Importar JSON</span>
                     </button>
                     <button id="btnLimpiar" class="col-span-2 p-4 bg-red-500/10 rounded-2xl border border-red-500/20 text-red-500 font-black text-[11px] uppercase active:scale-95 transition-all">
                         Vaciar Nube y Archivar Todo
@@ -174,27 +177,27 @@
             </div>
         </section>
 
-        <!-- PANEL CARPETAS -->
+        <!-- CARPETAS -->
         <section id="archiveroPanel" class="content-panel p-4 space-y-4">
             <h3 class="text-lg font-black uppercase text-white">Carpetas Archivadas</h3>
             <div id="archiveroContainer" class="space-y-3"></div>
         </section>
 
-        <!-- PANEL IMPORTAR TEXTO -->
+        <!-- IMPORTAR REPORTE -->
         <section id="importarPanel" class="content-panel p-4">
             <div class="bg-white dark:bg-surface-dark p-8 rounded-[2.5rem] border border-border-dark shadow-xl">
                 <h3 class="text-lg font-black mb-4 text-white uppercase flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary">description</span> Importar desde Texto
+                    <span class="material-symbols-outlined text-primary">description</span> Importar Reporte
                 </h3>
-                <textarea id="importText" rows="8" class="w-full bg-slate-100 dark:bg-background-dark border-border-dark rounded-2xl p-4 text-xs mb-4 text-white font-mono outline-none" placeholder="Pega el texto del reporte aquí..."></textarea>
+                <textarea id="importText" rows="8" class="w-full bg-slate-100 dark:bg-background-dark border-border-dark rounded-2xl p-4 text-xs mb-4 text-white font-mono outline-none" placeholder="Pega el texto aquí..."></textarea>
                 <button id="btnProcesarTexto" class="w-full bg-primary text-white py-4 rounded-xl font-black uppercase active:scale-95 transition-all">Procesar e Importar</button>
             </div>
         </section>
 
-        <!-- PANEL NOTAS -->
+        <!-- NOTAS -->
         <section id="notasPanel" class="content-panel">
-            <div class="p-6 bg-white dark:bg-background-dark border-b border-border-dark">
-                <textarea id="notaMsg" class="w-full bg-slate-100 dark:bg-surface-dark border-border-dark rounded-2xl p-4 text-sm min-h-[100px] text-white outline-none" placeholder="Escribe un mensaje para el equipo..."></textarea>
+            <div class="p-6 bg-white dark:bg-background-dark border-b border-border-dark shadow-sm">
+                <textarea id="notaMsg" class="w-full bg-slate-100 dark:bg-surface-dark border-border-dark rounded-2xl p-4 text-sm min-h-[100px] text-white outline-none" placeholder="Escribe una nota para el equipo..."></textarea>
                 <button id="btnNota" class="w-full mt-3 bg-primary text-white py-4 rounded-xl font-black text-xs uppercase shadow-lg active:scale-95 transition-all">Publicar Nota</button>
             </div>
             <div id="notesContainer" class="p-4 space-y-4"></div>
@@ -202,7 +205,7 @@
 
     </main>
 
-    <!-- NAVEGACIÓN TAB BAR -->
+    <!-- TAB BAR -->
     <nav class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-background-dark/90 backdrop-blur-xl border-t border-slate-200 dark:border-border-dark px-6 pb-10 pt-4 z-50">
         <div class="flex items-center justify-between max-w-2xl mx-auto overflow-x-auto no-scrollbar gap-4">
             <button class="nav-btn flex flex-col items-center gap-1 text-primary scale-110 shrink-0" data-target="agregarPanel">
@@ -234,7 +237,7 @@
         <header class="p-4 border-b border-border-dark flex justify-between items-center bg-surface-dark shrink-0">
             <div class="flex items-center gap-3">
                 <span class="material-symbols-outlined text-primary">folder_open</span>
-                <h3 id="archivoModalTitulo" class="text-sm font-black uppercase text-white">Detalle Carpeta</h3>
+                <h3 id="archivoModalTitulo" class="text-sm font-black uppercase text-white leading-none">Detalle Carpeta</h3>
             </div>
             <button onclick="cerrarArchivo()" class="bg-red-500/20 text-red-500 px-4 py-2 rounded-full text-[10px] font-black uppercase">Cerrar</button>
         </header>
@@ -244,7 +247,7 @@
     <!-- MODAL CONFIRMACIÓN -->
     <div id="confirmModal" class="fixed inset-0 z-[100] bg-background-dark/90 backdrop-blur-sm hidden items-center justify-center p-6 text-center">
         <div class="w-full max-w-sm bg-surface-dark p-8 rounded-[2.5rem] border border-border-dark shadow-2xl">
-            <h3 id="confirmTitle" class="text-lg font-black mb-2 text-white uppercase tracking-tighter text-white">¿Confirmar?</h3>
+            <h3 id="confirmTitle" class="text-lg font-black mb-2 text-white uppercase tracking-tighter">¿Confirmar?</h3>
             <p id="confirmMsg" class="text-slate-400 text-sm mb-8 leading-relaxed"></p>
             <div class="flex gap-3">
                 <button id="confirmBtnYes" class="flex-1 bg-red-500 text-white py-4 rounded-xl font-black uppercase text-xs">Confirmar</button>
@@ -358,7 +361,7 @@
                 </div>`).join('');
 
             return `
-                <div class="bg-white dark:bg-surface-dark rounded-[2.5rem] border border-border-dark overflow-hidden shadow-xl">
+                <div class="bg-white dark:bg-surface-dark rounded-[2.5rem] border border-border-dark overflow-hidden">
                     <div class="p-5 bg-background-dark/40 border-b border-border-dark flex justify-between items-center">
                         <h4 class="text-xs font-black uppercase text-primary tracking-tighter">${fFec(fecha)}</h4>
                         <button onclick="copiarDia('${fecha}')" class="text-slate-500"><span class="material-symbols-outlined text-sm">content_copy</span></button>
@@ -416,7 +419,7 @@
                 <div class="bg-surface-dark border border-border-dark p-5 rounded-3xl flex justify-between items-center shadow-md">
                     <div>
                         <h5 class="text-xs font-black text-white uppercase">${arc.rango}</h5>
-                        <p class="text-[10px] font-bold text-slate-500 mt-1">${arc.totalRec} | ${arc.totalPtos}</p>
+                        <p class="text-[10px] font-bold text-slate-500 mt-1 uppercase">${arc.totalRec} | ${arc.totalPtos}</p>
                     </div>
                     <div class="flex gap-2">
                         <button onclick="verArchivo(${idx})" class="size-10 rounded-xl bg-primary text-white flex items-center justify-center"><span class="material-symbols-outlined">visibility</span></button>
@@ -432,11 +435,11 @@
             cont.innerHTML = `
                 <div class="grid grid-cols-2 gap-4 mb-6 text-center">
                     <div class="bg-primary/10 border border-primary/20 p-5 rounded-[2rem]">
-                        <span class="text-[9px] font-black text-primary uppercase block mb-1">Recaudación Final</span>
+                        <span class="text-[9px] font-black text-primary uppercase block mb-1 leading-none">Recaudación Final</span>
                         <span class="text-xl font-black text-white">${arc.totalRec}</span>
                     </div>
                     <div class="bg-accent-amber/10 border border-accent-amber/20 p-5 rounded-[2rem]">
-                        <span class="text-[9px] font-black text-accent-amber uppercase block mb-1">Puntos Final</span>
+                        <span class="text-[9px] font-black text-accent-amber uppercase block mb-1 leading-none">Puntos Final</span>
                         <span class="text-xl font-black text-white">${arc.totalPtos}</span>
                     </div>
                 </div>
@@ -465,12 +468,15 @@
             }
         };
 
+        // --- VACIAR NUBE Y ARCHIVAR (PROTEGIENDO NOTAS) ---
         document.getElementById('btnLimpiar').onclick = async () => {
             if(datos.length === 0) return;
-            if(await customConfirm("¿VACIAR Y ARCHIVAR?", "Se creará una carpeta detallada local y se limpiará la nube.")) {
-                showLoad(true, "Archivando mes...");
+            if(await customConfirm("¿VACIAR Y ARCHIVAR?", "Se creará una carpeta detallada local. Los registros y divisores se borrarán de la nube, pero las NOTAS se mantendrán.")) {
+                showLoad(true, "Archivando y Limpiando...");
                 const sorted = datos.map(d => d.fecha).sort();
                 const totalR = datos.reduce((s,d) => s + d.monto, 0);
+                
+                // Guardar localmente
                 archivero.push({
                     rango: `${fFec(sorted[0])} - ${fFec(sorted[sorted.length-1])}`,
                     totalRec: fNum(totalR),
@@ -479,12 +485,23 @@
                     divisores: JSON.parse(JSON.stringify(divisores))
                 });
                 localStorage.setItem('carpetas_recaudacion_pro_v3', JSON.stringify(archivero));
-                await post({ action: 'importAll', data: {datos:[], notes:[], divisores:{}} });
+
+                // Limpiar en nube enviando los datos vacíos PERO manteniendo el array actual de notes
+                await post({ 
+                    action: 'importAll', 
+                    data: {
+                        datos: [], 
+                        notes: notes, // REENVIAR NOTAS ACTUALES PARA QUE NO SE BORREN
+                        divisores: {} 
+                    } 
+                });
+
                 await cargarTodo();
-                showToast("Mes archivado con éxito");
+                showToast("Mes archivado. Notas conservadas.");
             }
         };
 
+        // --- BACKUPS ---
         document.getElementById('btnExportarJson').onclick = () => {
             const backup = { datos, notes, divisores, archivero };
             const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
@@ -538,7 +555,7 @@
             showToast("Importación finalizada");
         };
 
-        // --- NOTAS (CON FECHA FORMATEADA) ---
+        // --- NOTAS (AUTOR Y FECHA "Lunes...") ---
         function renderNotes() {
             const container = document.getElementById('notesContainer');
             container.innerHTML = notes.slice().reverse().map(n => {
