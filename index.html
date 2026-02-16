@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
-    <title>Recaudación Pro v2 - Evolución Final</title>
+    <title>Recaudación Pro v2 - Live Sync</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#5855f6">
@@ -40,6 +40,18 @@
         .toast { background: #1e293b; color: white; padding: 12px 24px; border-radius: 14px; font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 12px; animation: toastIn 0.3s ease-out; pointer-events: auto; }
         @keyframes toastIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .modal-open { overflow: hidden; }
+        
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        .select-edit {
+            background-image: none;
+            padding-right: 0;
+            text-transform: uppercase;
+            font-weight: 900;
+            font-size: 9px;
+            letter-spacing: 0.05em;
+        }
     </style>
 </head>
 
@@ -47,11 +59,11 @@
 
     <div id="toast-container"></div>
 
-    <!-- LOADER GLOBAL -->
+    <!-- LOADER -->
     <div id="globalLoader" class="fixed inset-0 bg-background-dark/80 backdrop-blur-md hidden items-center justify-center z-[10000]">
         <div class="text-center">
             <div class="size-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto"></div>
-            <p id="loaderMsg" class="mt-4 text-primary font-bold text-xs uppercase tracking-widest text-white text-center">Sincronizando...</p>
+            <p id="loaderMsg" class="mt-4 text-primary font-bold text-xs uppercase tracking-widest text-white text-center">Conectando...</p>
         </div>
     </div>
 
@@ -258,19 +270,20 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // --- CONFIGURACIÓN ---
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz_kCb4aEe437zHGbRqnjCibw1NtAqfCbTNmsVPn9jaZOPBFaZ6-FwmiTLqVxq39X1P/exec';
-        let datos = [], notes = [], divisores = {}, minimizado = true, currentUser = '';
+        
+        let datos = [], notes = [], divisores = {};
         let archivero = JSON.parse(localStorage.getItem('carpetas_recaudacion_pro_v3') || '[]');
+        let minimizado = true;
+        let currentUser = '';
         let debounceTimer;
 
-        // --- FORMATEO FECHA: "Lunes, 15/02/2026" ---
         const fFec = (f, incluyeHora = false) => {
             if (!f) return '';
             const d = incluyeHora ? new Date(f) : new Date(f + 'T12:00:00');
             const opciones = { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' };
-            if (incluyeHora) { 
-                opciones.hour = '2-digit'; opciones.minute = '2-digit'; 
-            }
+            if (incluyeHora) { opciones.hour = '2-digit'; opciones.minute = '2-digit'; }
             let res = d.toLocaleDateString('es-ES', opciones);
             return res.charAt(0).toUpperCase() + res.slice(1);
         };
@@ -305,6 +318,7 @@
             document.getElementById('globalLoader').style.display = s ? 'flex' : 'none';
         };
 
+        // --- CONEXIÓN API ---
         async function post(data) {
             return fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify(data) }).then(r => r.json());
         }
@@ -318,12 +332,35 @@
                     fetch(url + "?action=getNotes").then(r => r.json()),
                     fetch(url + "?action=getDivisores").then(r => r.json())
                 ]);
-                datos = d.data || []; notes = n.data || []; divisores = v.data || {};
-                render();
-            } catch(e) { showToast("Error de conexión", "error"); }
+
+                // --- DETECCIÓN DE CAMBIOS PARA TOAST ---
+                const nuevosDatos = d.data || [];
+                const nuevasNotas = n.data || [];
+                const nuevosDivisores = v.data || {};
+
+                // Creamos una "firma" de los datos actuales y los nuevos para comparar
+                const firmaActual = JSON.stringify({ datos, notes, divisores });
+                const firmaNueva = JSON.stringify({ datos: nuevosDatos, notes: nuevasNotas, divisores: nuevosDivisores });
+
+                // Solo si algo cambió Y NO es la primera carga (loader=false indica auto-carga)
+                if (firmaActual !== firmaNueva) {
+                    datos = nuevosDatos;
+                    notes = nuevasNotas;
+                    divisores = nuevosDivisores;
+                    render(); // Solo redibujamos si hubo cambios para evitar parpadeos
+                    
+                    if (!loader) {
+                        showToast("Nuevos datos sincronizados", "sync");
+                    }
+                }
+
+            } catch(e) { 
+                if(loader) showToast("Error de conexión", "error"); 
+            }
             finally { if(loader) showLoad(false); }
         }
 
+        // --- RENDERIZADO ---
         function render() {
             const totalRec = datos.reduce((s, d) => s + d.monto, 0);
             document.getElementById('tot-rec').textContent = fNum(totalRec);
@@ -354,23 +391,38 @@
             const rows = registros.map(d => `
                 <div class="flex justify-between items-center py-3 border-b border-border-dark/30 last:border-0">
                     <div>
-                        <span class="text-[9px] font-black text-primary uppercase leading-none">${d.tipo}</span>
-                        <p class="text-sm font-bold text-white">${fNum(d.monto)}</p>
+                        ${editable ? `
+                            <select onchange="silenciosoTipo(${d.originalIndex}, this.value)" class="bg-transparent text-primary select-edit border-none focus:ring-0 p-0 outline-none cursor-pointer">
+                                <option class="bg-surface-dark" value="Máquinas" ${d.tipo === 'Máquinas' ? 'selected' : ''}>Máquinas</option>
+                                <option class="bg-surface-dark" value="Mesas" ${d.tipo === 'Mesas' ? 'selected' : ''}>Mesas</option>
+                                <option class="bg-surface-dark" value="Otras" ${d.tipo === 'Otras' ? 'selected' : ''}>Otras</option>
+                            </select>
+                        ` : `<span class="text-[9px] font-black text-primary uppercase leading-none">${d.tipo}</span>`}
+                        
+                        ${editable ? `
+                        <div class="flex items-center">
+                            <span class="text-sm font-bold text-white mr-1">$</span>
+                            <input type="tel" 
+                                value="${Math.floor(d.monto).toLocaleString('es-ES')}" 
+                                oninput="formatearMonto(this); silenciosoMonto(${d.originalIndex}, this.value)"
+                                class="bg-transparent border-none p-0 text-sm font-bold text-white focus:ring-0 w-28 outline-none placeholder-slate-600">
+                        </div>
+                        ` : `<p class="text-sm font-bold text-white">${fNum(d.monto)}</p>`}
                     </div>
                     ${editable ? `<button onclick="borrarRegistro(${d.originalIndex})" class="text-red-500 opacity-20 hover:opacity-100 transition-all"><span class="material-symbols-outlined text-sm">delete</span></button>` : ''}
                 </div>`).join('');
 
             return `
-                <div class="bg-white dark:bg-surface-dark rounded-[2.5rem] border border-border-dark overflow-hidden">
+                <div class="bg-white dark:bg-surface-dark rounded-[2.5rem] border border-border-dark overflow-hidden transition-all">
                     <div class="p-5 bg-background-dark/40 border-b border-border-dark flex justify-between items-center">
                         <h4 class="text-xs font-black uppercase text-primary tracking-tighter">${fFec(fecha)}</h4>
-                        <button onclick="copiarDia('${fecha}')" class="text-slate-500"><span class="material-symbols-outlined text-sm">content_copy</span></button>
+                        <button onclick="copiarDia('${fecha}')" class="text-slate-500 hover:text-white transition-colors"><span class="material-symbols-outlined text-sm">content_copy</span></button>
                     </div>
                     <div class="px-6 py-2">${rows}</div>
                     <div class="p-6 bg-background-dark/20 border-t border-border-dark grid grid-cols-2 gap-4">
                         <div>
                             <span class="text-[9px] font-black text-slate-500 uppercase block leading-none mb-1">Total Noche</span>
-                            <span class="text-lg font-black text-white">${fNum(diaTot)}</span>
+                            <span id="total-dia-${fecha}" class="text-lg font-black text-white">${fNum(diaTot)}</span>
                         </div>
                         <div class="text-right">
                             <div class="flex flex-col items-end">
@@ -378,7 +430,8 @@
                                 ${editable ? `
                                 <input type="number" step="any" value="${divVal || ''}" 
                                     oninput="silenciosoDivisor('${fecha}', this.value)" 
-                                    class="w-16 bg-background-dark border border-border-dark rounded-lg text-center text-accent-amber font-black text-xs py-1 outline-none">
+                                    placeholder="0"
+                                    class="w-20 bg-background-dark border border-border-dark rounded-lg text-center text-accent-amber font-black text-xs py-1 outline-none focus:ring-1 focus:ring-accent-amber">
                                 ` : `<span class="text-white font-black">${divVal}</span>`}
                                 <span id="res-${fecha}" class="text-xl font-black text-accent-amber mt-1">${fNum(resDiv)}</span>
                             </div>
@@ -387,9 +440,66 @@
                 </div>`;
         }
 
+        // --- LÓGICA DE EDICIÓN EN TIEMPO REAL ---
+        
+        const enviarActualizacion = (index, item) => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(async () => {
+                await post({ 
+                    action: 'update', 
+                    index: index, 
+                    fecha: item.fecha,
+                    tipo: item.tipo, 
+                    monto: item.monto 
+                });
+                showToast("Guardado en Nube", "cloud_done");
+            }, 1000); 
+        };
+
+        window.silenciosoTipo = (index, nuevoTipo) => {
+            const item = datos.find(d => d.originalIndex === index);
+            if (item) {
+                item.tipo = nuevoTipo; 
+                render(); 
+                enviarActualizacion(index, item);
+            }
+        };
+
+        window.silenciosoMonto = (index, valor) => {
+            const v = parseFloat(valor.replace(/\./g, '')) || 0;
+            const item = datos.find(d => d.originalIndex === index);
+            if (item) item.monto = v;
+
+            const fecha = item.fecha;
+            const itemsDia = datos.filter(d => d.fecha === fecha);
+            const nuevoTotalDia = itemsDia.reduce((s, d) => s + d.monto, 0);
+            const divVal = divisores[fecha] || 0;
+            
+            const elTotalDia = document.getElementById(`total-dia-${fecha}`);
+            if (elTotalDia) elTotalDia.textContent = fNum(nuevoTotalDia);
+            
+            const elRes = document.getElementById(`res-${fecha}`);
+            if (elRes) elRes.textContent = fNum(divVal > 0 ? nuevoTotalDia / divVal : 0);
+
+            const totalRec = datos.reduce((s, d) => s + d.monto, 0);
+            document.getElementById('tot-rec').textContent = fNum(totalRec);
+            
+            let totalGeneralPtos = 0;
+            const grouped = datos.reduce((acc, d) => { (acc[d.fecha] = acc[d.fecha] || []).push(d); return acc; }, {});
+            Object.keys(grouped).forEach(f => {
+                const tD = grouped[f].reduce((s, d) => s + d.monto, 0);
+                const dV = divisores[f] || 0;
+                if(dV > 0) totalGeneralPtos += (tD / dV);
+            });
+            document.getElementById('tot-div').textContent = fNum(totalGeneralPtos);
+
+            enviarActualizacion(index, item);
+        };
+
         window.silenciosoDivisor = (fecha, valor) => {
             const v = parseFloat(valor) || 0;
             divisores[fecha] = v;
+            
             const diaTot = datos.filter(d => d.fecha === fecha).reduce((s,d) => s + d.monto, 0);
             const res = v > 0 ? diaTot / v : 0;
             document.getElementById(`res-${fecha}`).textContent = fNum(res);
@@ -406,13 +516,15 @@
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(async () => {
                 await post({ action: 'updateDivisor', fecha, divisor: v });
+                showToast("Divisor guardado", "cloud_done");
             }, 1000);
         };
 
+        // --- GESTIÓN DE ARCHIVERO Y OTROS ---
         function renderArchivero() {
             const container = document.getElementById('archiveroContainer');
             if(archivero.length === 0) {
-                container.innerHTML = `<p class="text-center py-10 text-[10px] uppercase opacity-20">No hay carpetas</p>`;
+                container.innerHTML = `<p class="text-center py-10 text-[10px] uppercase opacity-20 text-white">No hay carpetas</p>`;
                 return;
             }
             container.innerHTML = archivero.map((arc, idx) => `
@@ -422,8 +534,8 @@
                         <p class="text-[10px] font-bold text-slate-500 mt-1 uppercase">${arc.totalRec} | ${arc.totalPtos}</p>
                     </div>
                     <div class="flex gap-2">
-                        <button onclick="verArchivo(${idx})" class="size-10 rounded-xl bg-primary text-white flex items-center justify-center"><span class="material-symbols-outlined">visibility</span></button>
-                        <button onclick="eliminarCarpeta(${idx})" class="size-10 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center"><span class="material-symbols-outlined">delete</span></button>
+                        <button onclick="verArchivo(${idx})" class="size-10 rounded-xl bg-primary text-white flex items-center justify-center active:scale-95 transition-all"><span class="material-symbols-outlined">visibility</span></button>
+                        <button onclick="eliminarCarpeta(${idx})" class="size-10 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center active:scale-95 transition-all"><span class="material-symbols-outlined">delete</span></button>
                     </div>
                 </div>`).join('');
         }
@@ -468,15 +580,13 @@
             }
         };
 
-        // --- VACIAR NUBE Y ARCHIVAR (PROTEGIENDO NOTAS) ---
         document.getElementById('btnLimpiar').onclick = async () => {
             if(datos.length === 0) return;
-            if(await customConfirm("¿VACIAR Y ARCHIVAR?", "Se creará una carpeta detallada local. Los registros y divisores se borrarán de la nube, pero las NOTAS se mantendrán.")) {
-                showLoad(true, "Archivando y Limpiando...");
+            if(await customConfirm("¿VACIAR Y ARCHIVAR?", "Se borrará todo de la nube. ¿Seguro?")) {
+                showLoad(true, "Archivando...");
                 const sorted = datos.map(d => d.fecha).sort();
                 const totalR = datos.reduce((s,d) => s + d.monto, 0);
                 
-                // Guardar localmente
                 archivero.push({
                     rango: `${fFec(sorted[0])} - ${fFec(sorted[sorted.length-1])}`,
                     totalRec: fNum(totalR),
@@ -486,30 +596,24 @@
                 });
                 localStorage.setItem('carpetas_recaudacion_pro_v3', JSON.stringify(archivero));
 
-                // Limpiar en nube enviando los datos vacíos PERO manteniendo el array actual de notes
                 await post({ 
                     action: 'importAll', 
-                    data: {
-                        datos: [], 
-                        notes: notes, // REENVIAR NOTAS ACTUALES PARA QUE NO SE BORREN
-                        divisores: {} 
-                    } 
+                    data: { datos: [], notes: notes, divisores: {} } 
                 });
 
                 await cargarTodo();
-                showToast("Mes archivado. Notas conservadas.");
+                showToast("Archivado Correctamente");
             }
         };
 
-        // --- BACKUPS ---
         document.getElementById('btnExportarJson').onclick = () => {
             const backup = { datos, notes, divisores, archivero };
             const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = `BACKUP_TOTAL_${new Date().toISOString().slice(0,10)}.json`;
+            a.download = `BACKUP_${new Date().toISOString().slice(0,10)}.json`;
             a.click();
-            showToast("Backup completo descargado");
+            showToast("Backup Descargado");
         };
 
         document.getElementById('btnImportarTrigger').onclick = () => document.getElementById('jsonFileInput').click();
@@ -520,17 +624,17 @@
             reader.onload = async (ev) => {
                 try {
                     const content = JSON.parse(ev.target.result);
-                    if(await customConfirm("¿Restaurar Backup?", "Se sobrescribirán los datos de la nube y el archivero local.")) {
-                        showLoad(true, "Sincronizando...");
+                    if(await customConfirm("¿Restaurar Backup?", "Sobrescribirá datos actuales.")) {
+                        showLoad(true, "Restaurando...");
                         await post({ action: 'importAll', data: content });
                         if(content.archivero) {
                             archivero = content.archivero;
                             localStorage.setItem('carpetas_recaudacion_pro_v3', JSON.stringify(archivero));
                         }
                         await cargarTodo();
-                        showToast("Sistema restaurado con éxito");
+                        showToast("Sistema Restaurado");
                     }
-                } catch(err) { showToast("Archivo JSON inválido", "error"); }
+                } catch(err) { showToast("JSON Inválido", "error"); }
             };
             reader.readAsText(file);
             e.target.value = '';
@@ -552,16 +656,14 @@
             }
             document.getElementById('importText').value = '';
             await cargarTodo();
-            showToast("Importación finalizada");
+            showToast("Texto Importado");
         };
 
-        // --- NOTAS (AUTOR Y FECHA "Lunes...") ---
         function renderNotes() {
             const container = document.getElementById('notesContainer');
             container.innerHTML = notes.slice().reverse().map(n => {
                 const autor = n.autor || 'Desconocido';
                 const inicial = autor.charAt(0).toUpperCase();
-                
                 return `
                 <div class="bg-surface-dark p-6 rounded-[2rem] border-l-4 border-primary relative shadow-md">
                     <button onclick="borrarNota(${n.originalIndex})" class="absolute top-4 right-4 text-red-500 opacity-20 hover:opacity-100 transition-all"><span class="material-symbols-outlined text-sm">delete</span></button>
@@ -578,7 +680,7 @@
         }
 
         window.borrarRegistro = async (idx) => {
-            if(await customConfirm("¿Borrar Registro?", "Se eliminará de la nube permanentemente.")) {
+            if(await customConfirm("¿Borrar?", "Se borrará permanentemente.")) {
                 showLoad(true); await post({ action:'delete', index: idx }); await cargarTodo();
             }
         };
@@ -608,7 +710,8 @@
                 document.getElementById('activeUserBadge').textContent = `SESIÓN: ${currentUser}`;
                 document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
                 cargarTodo();
-                setInterval(() => cargarTodo(false), 300000); 
+                // CONFIGURACIÓN DE ACTUALIZACIÓN AUTOMÁTICA CADA 10 SEGUNDOS
+                setInterval(() => cargarTodo(false), 10000); 
             } else { alert("Clave Incorrecta"); }
         };
 
@@ -617,8 +720,7 @@
             if(!msg) return;
             showLoad(true, "Publicando...");
             await post({ action:'addNote', autor: currentUser, mensaje: msg });
-            document.getElementById('notaMsg').value = ''; 
-            await cargarTodo();
+            document.getElementById('notaMsg').value = ''; await cargarTodo();
             showToast("Nota publicada");
         };
 
