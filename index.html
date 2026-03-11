@@ -288,7 +288,10 @@
             return res.charAt(0).toUpperCase() + res.slice(1);
         };
 
-        const fNum = (n) => `$${Math.floor(n || 0).toLocaleString('es-ES')}`;
+        // AQUÍ EL CAMBIO CLAVE: Usamos Math.round en lugar de Math.floor
+        // Esto permite que el número en pantalla represente exactamente 
+        // a la suma pura en segundo plano.
+        const fNum = (n) => `$${Math.round(n || 0).toLocaleString('es-ES')}`;
         
         window.formatearMonto = (input) => {
             let v = input.value.replace(/\D/g, '');
@@ -375,12 +378,15 @@
             sortedDates.forEach((fecha, i) => {
                 const diaTot = grouped[fecha].reduce((s, d) => s + d.monto, 0);
                 const divVal = divisores[fecha] || 0;
+                
+                // Mantenemos el decimal puro para la suma total
                 const resDiv = divVal > 0 ? diaTot / divVal : 0;
                 totalGeneralPtos += resDiv;
 
                 if (minimizado && i > 0 && !document.getElementById('filtro').value) return;
                 container.innerHTML += crearCardFecha(fecha, grouped[fecha], divVal, resDiv, true);
             });
+            
             document.getElementById('tot-div').textContent = fNum(totalGeneralPtos);
             renderNotes();
             renderArchivero();
@@ -403,7 +409,7 @@
                         <div class="flex items-center">
                             <span class="text-sm font-bold text-white mr-1">$</span>
                             <input type="tel" 
-                                value="${Math.floor(d.monto).toLocaleString('es-ES')}" 
+                                value="${Math.round(d.monto).toLocaleString('es-ES')}" 
                                 oninput="formatearMonto(this); silenciosoMonto(${d.originalIndex}, this.value)"
                                 class="bg-transparent border-none p-0 text-sm font-bold text-white focus:ring-0 w-28 outline-none placeholder-slate-600">
                         </div>
@@ -695,9 +701,13 @@
             const items = datos.filter(d => d.fecha === fecha);
             const total = items.reduce((s,d) => s + d.monto, 0);
             const div = divisores[fecha] || 0;
+            
+            // EL REDONDEO APLICADO A LA HORA DE COPIAR EL REPORTE
+            const res = div > 0 ? total / div : 0;
+            
             let txt = `📊 REPORTE ${fFec(fecha)}\n`;
             items.forEach(i => txt += `• ${i.tipo}: ${fNum(i.monto)}\n`);
-            txt += `💰 TOTAL: ${fNum(total)}\n✅ RES: ${fNum(div>0?total/div:0)}`;
+            txt += `💰 TOTAL: ${fNum(total)}\n✅ RES: ${fNum(res)}`;
             navigator.clipboard.writeText(txt).then(() => showToast("Copiado"));
         };
 
