@@ -1,767 +1,334 @@
 <!DOCTYPE html>
-<html class="dark" lang="es">
+<html lang="es" class="dark">
 <head>
-    <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
-    <title>Recaudación Pro v2 - Live Sync</title>
-    
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#5855f6">
-    
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-    
-    <script id="tailwind-config">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube to MP3 Converter | Convertidor de Audio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
         tailwind.config = {
-            darkMode: "class",
+            darkMode: 'class',
             theme: {
                 extend: {
-                    colors: {
-                        "primary": "#5855f6",
-                        "background-dark": "#101022",
-                        "surface-dark": "#191834",
-                        "border-dark": "#323168",
-                        "accent-amber": "#f59e0b",
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
                     },
-                    fontFamily: { "display": ["Inter", "sans-serif"] },
-                },
-            },
+                    colors: {
+                        brand: {
+                            50: '#fff1f2',
+                            100: '#ffe4e6',
+                            500: '#f43f5e',
+                            600: '#e11d48',
+                            700: '#be123c',
+                        }
+                    }
+                }
+            }
         }
     </script>
     <style>
-        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; scroll-behavior: smooth; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .content-panel { display: none; }
-        .content-panel.active { display: block; animation: fadeIn 0.4s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
-        #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
-        .toast { background: #1e293b; color: white; padding: 12px 24px; border-radius: 14px; font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 12px; animation: toastIn 0.3s ease-out; pointer-events: auto; }
-        @keyframes toastIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        .modal-open { overflow: hidden; }
-        
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-        
-        .select-edit {
-            background-image: none;
-            padding-right: 0;
-            text-transform: uppercase;
-            font-weight: 900;
-            font-size: 9px;
-            letter-spacing: 0.05em;
+        .gradient-bg {
+            background: radial-gradient(circle at 50% 0%, rgba(244, 63, 94, 0.15), transparent 70%),
+                        radial-gradient(circle at 10% 90%, rgba(99, 102, 241, 0.1), transparent 60%);
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 0.4; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .animate-pulse-ring {
+            animation: pulse-ring 2s infinite ease-in-out;
         }
     </style>
 </head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col justify-between selection:bg-rose-500 selection:text-white gradient-bg">
 
-<body class="bg-slate-50 dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen">
-
-    <div id="toast-container"></div>
-
-    <!-- LOADER -->
-    <div id="globalLoader" class="fixed inset-0 bg-background-dark/80 backdrop-blur-md hidden items-center justify-center z-[10000]">
-        <div class="text-center">
-            <div class="size-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto"></div>
-            <p id="loaderMsg" class="mt-4 text-primary font-bold text-xs uppercase tracking-widest text-white text-center">Conectando...</p>
-        </div>
-    </div>
-
-    <!-- LOGIN -->
-    <div id="loginOverlay" class="fixed inset-0 z-[9999] bg-background-dark flex items-center justify-center p-6">
-        <div class="w-full max-w-md bg-surface-dark p-8 rounded-[2.5rem] border border-border-dark shadow-2xl text-center">
-            <div class="size-16 bg-primary/20 rounded-2xl flex items-center justify-center mb-6 mx-auto border border-primary/30 text-white text-3xl">
-                <span class="material-symbols-outlined text-4xl">shield_person</span>
-            </div>
-            <h2 class="text-2xl font-black mb-8 tracking-tight text-white uppercase">Acceso Profesional</h2>
-            <form id="loginForm" class="space-y-4 text-left">
-                <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Seleccione Usuario</label>
-                <select id="username" class="w-full bg-background-dark border-border-dark rounded-xl py-4 px-5 text-white font-bold focus:ring-2 focus:ring-primary outline-none">
-                    <option value="ADMIN">ADMINISTRADOR</option>
-                    <option value="MESAS">USUARIO: MESAS</option>
-                    <option value="MAQUINAS">USUARIO: MÁQUINAS</option>
-                </select>
-                <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Clave</label>
-                <input type="password" id="password" placeholder="••••" class="w-full bg-background-dark border-border-dark rounded-xl py-4 px-5 text-white focus:ring-2 focus:ring-primary outline-none">
-                <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-white py-4 rounded-xl font-black transition-all active:scale-95 shadow-xl shadow-primary/20 mt-4">INGRESAR AL PANEL</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- HEADER -->
-    <header class="sticky top-0 z-40 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-border-dark">
-        <div class="flex items-center justify-between p-4 max-w-2xl mx-auto">
-            <div class="flex items-center gap-3">
-                <div class="size-10 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30 text-primary">
-                    <span class="material-symbols-outlined">analytics</span>
+    <!-- Navbar -->
+    <header class="border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 to-orange-500 flex items-center justify-center shadow-lg shadow-rose-500/20">
+                    <i class="fa-brands fa-youtube text-xl text-white"></i>
                 </div>
                 <div>
-                    <h1 class="text-md font-black leading-none text-white">Recaudación Pro</h1>
-                    <p id="activeUserBadge" class="text-[9px] text-primary font-bold uppercase mt-1 tracking-widest"></p>
+                    <h1 class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-rose-400 bg-clip-text text-transparent">
+                        YT to MP3 Converter
+                    </h1>
+                    <p class="text-xs text-slate-400">Extrae audio en alta calidad</p>
                 </div>
             </div>
-            <button id="logoutBtn" class="bg-red-500/10 text-red-500 px-4 py-2 rounded-full text-[10px] font-bold hover:bg-red-500 hover:text-white transition-all uppercase">Cerrar</button>
+            <div class="flex items-center space-x-2">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    En línea
+                </span>
+            </div>
         </div>
     </header>
 
-    <main id="mainContent" class="max-w-2xl mx-auto pb-32 hidden">
-        
-        <!-- DASHBOARD -->
-        <div class="p-4 grid grid-cols-2 gap-4">
-            <div class="bg-white dark:bg-surface-dark p-5 rounded-3xl border border-slate-200 dark:border-border-dark shadow-sm text-center">
-                <span class="text-[10px] text-slate-500 font-black uppercase">Recaudación Mes</span>
-                <p id="tot-rec" class="text-2xl font-black text-primary mt-1">$0</p>
+    <!-- Main Container -->
+    <main class="max-w-3xl w-full mx-auto px-4 py-12 flex-1 flex flex-col justify-center">
+        <!-- Hero Title -->
+        <div class="text-center mb-8 space-y-3">
+            <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs font-medium text-rose-400 mb-2">
+                <i class="fa-solid fa-bolt"></i> Rápido, Gratuito y Sin Límites
             </div>
-            <div class="bg-white dark:bg-surface-dark p-5 rounded-3xl border border-slate-200 dark:border-border-dark shadow-sm text-center">
-                <span class="text-[10px] text-slate-500 font-black uppercase">Total Puntos Final</span>
-                <p id="tot-div" class="text-2xl font-black text-accent-amber mt-1">$0</p>
+            <h2 class="text-3xl md:text-5xl font-extrabold tracking-tight">
+                Convierte tus videos favoritos <br class="hidden sm:block">
+                en <span class="bg-gradient-to-r from-rose-500 to-orange-400 bg-clip-text text-transparent">archivos MP3</span>
+            </h2>
+            <p class="text-slate-400 text-sm md:text-base max-w-xl mx-auto">
+                Pega el enlace de YouTube, elige la calidad de compresión deseada y descarga el audio directamente en tu dispositivo.
+            </p>
+        </div>
+
+        <!-- Conversion Card -->
+        <div class="bg-slate-900/80 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
+            <form id="convertForm" class="space-y-6">
+                <!-- URL Input -->
+                <div class="space-y-2">
+                    <label for="youtubeUrl" class="block text-xs font-bold uppercase tracking-wider text-slate-300">
+                        Enlace del video de YouTube:
+                    </label>
+                    <div class="relative flex items-center">
+                        <span class="absolute left-4 text-slate-500">
+                            <i class="fa-solid fa-link text-lg"></i>
+                        </span>
+                        <input
+                            type="text"
+                            id="youtubeUrl"
+                            name="url"
+                            placeholder="https://www.youtube.com/watch?v=..."
+                            required
+                            class="w-full bg-slate-950/70 border border-slate-700/80 rounded-2xl py-4 pl-12 pr-28 text-sm md:text-base text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition-all shadow-inner"
+                        />
+                        <button
+                            type="button"
+                            id="pasteBtn"
+                            class="absolute right-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5"
+                        >
+                            <i class="fa-regular fa-paste"></i> Pegar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quality Selection -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-300">
+                        Calidad de Audio (Bitrate):
+                    </label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5" id="qualitySelector">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="bitrate" value="128" class="peer hidden">
+                            <div class="p-3 text-center rounded-xl border border-slate-800 bg-slate-950/50 peer-checked:border-rose-500 peer-checked:bg-rose-500/10 peer-checked:text-rose-400 transition-all hover:border-slate-700">
+                                <div class="font-bold text-sm">128 kbps</div>
+                                <div class="text-[10px] text-slate-400">Ligero</div>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="bitrate" value="192" checked class="peer hidden">
+                            <div class="p-3 text-center rounded-xl border border-slate-800 bg-slate-950/50 peer-checked:border-rose-500 peer-checked:bg-rose-500/10 peer-checked:text-rose-400 transition-all hover:border-slate-700">
+                                <div class="font-bold text-sm">192 kbps</div>
+                                <div class="text-[10px] text-slate-400">Estándar</div>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="bitrate" value="256" class="peer hidden">
+                            <div class="p-3 text-center rounded-xl border border-slate-800 bg-slate-950/50 peer-checked:border-rose-500 peer-checked:bg-rose-500/10 peer-checked:text-rose-400 transition-all hover:border-slate-700">
+                                <div class="font-bold text-sm">256 kbps</div>
+                                <div class="text-[10px] text-slate-400">Alta fidelidad</div>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="bitrate" value="320" class="peer hidden">
+                            <div class="p-3 text-center rounded-xl border border-slate-800 bg-slate-950/50 peer-checked:border-rose-500 peer-checked:bg-rose-500/10 peer-checked:text-rose-400 transition-all hover:border-slate-700">
+                                <div class="font-bold text-sm">320 kbps</div>
+                                <div class="text-[10px] text-slate-400">Máxima</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button
+                    type="submit"
+                    id="submitBtn"
+                    class="w-full py-4 px-6 bg-gradient-to-r from-rose-600 via-rose-500 to-orange-500 hover:from-rose-500 hover:to-orange-400 text-white font-bold rounded-2xl shadow-xl shadow-rose-600/25 transition-all transform active:scale-[0.99] flex items-center justify-center gap-3 text-base"
+                >
+                    <i class="fa-solid fa-download"></i>
+                    <span>Convertir y Descargar MP3</span>
+                </button>
+            </form>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="hidden mt-6 p-6 rounded-2xl bg-slate-950/60 border border-slate-800 text-center space-y-4">
+                <div class="inline-block relative">
+                    <div class="w-12 h-12 rounded-full border-4 border-rose-500/20 border-t-rose-500 animate-spin"></div>
+                </div>
+                <div class="space-y-1">
+                    <h4 class="font-bold text-sm text-slate-200" id="statusMessage">Procesando video...</h4>
+                    <p class="text-xs text-slate-400">Extrayendo audio y codificando en MP3. La descarga comenzará automáticamente.</p>
+                </div>
+            </div>
+
+            <!-- Error Banner -->
+            <div id="errorState" class="hidden mt-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm flex items-start gap-3">
+                <i class="fa-solid fa-circle-exclamation text-rose-400 text-lg mt-0.5"></i>
+                <div class="flex-1">
+                    <h5 class="font-bold">Ocurrió un error</h5>
+                    <p id="errorMessage" class="text-xs text-rose-300/90 mt-0.5"></p>
+                </div>
+            </div>
+
+            <!-- Video Preview / Success Card -->
+            <div id="previewCard" class="hidden mt-6 p-4 rounded-2xl bg-slate-950/80 border border-slate-800/90 flex flex-col sm:flex-row gap-4 items-center">
+                <img id="previewThumb" src="" alt="Thumbnail" class="w-28 h-20 object-cover rounded-xl border border-slate-800 shadow">
+                <div class="flex-1 text-center sm:text-left overflow-hidden">
+                    <h4 id="previewTitle" class="font-bold text-sm text-slate-100 truncate"></h4>
+                    <p id="previewAuthor" class="text-xs text-slate-400 mt-0.5"></p>
+                    <p id="previewDuration" class="text-xs text-rose-400 font-semibold mt-1"></p>
+                </div>
+                <div class="shrink-0">
+                    <a id="directDownloadBtn" href="#" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-down"></i> Descargar MP3
+                    </a>
+                </div>
             </div>
         </div>
 
-        <!-- AGREGAR -->
-        <section id="agregarPanel" class="content-panel active p-4 space-y-6">
-            <div class="bg-white dark:bg-surface-dark p-8 rounded-[2.5rem] border border-slate-200 dark:border-border-dark shadow-xl">
-                <h3 class="text-lg font-black mb-6 flex items-center gap-3 text-white uppercase justify-center">
-                    <span class="material-symbols-outlined text-primary text-3xl">add_circle</span> Nuevo Registro
-                </h3>
-                <form id="agregarForm" class="space-y-5">
-                    <div class="grid grid-cols-3 gap-2">
-                        <label class="cursor-pointer">
-                            <input type="radio" name="tipo" value="Máquinas" checked class="peer hidden">
-                            <div class="peer-checked:bg-primary peer-checked:text-white bg-slate-100 dark:bg-background-dark p-3 rounded-xl text-center transition-all border border-transparent">
-                                <span class="text-[10px] font-black uppercase">Máquinas</span>
-                            </div>
-                        </label>
-                        <label class="cursor-pointer">
-                            <input type="radio" name="tipo" value="Mesas" class="peer hidden">
-                            <div class="peer-checked:bg-primary peer-checked:text-white bg-slate-100 dark:bg-background-dark p-3 rounded-xl text-center transition-all border border-transparent">
-                                <span class="text-[10px] font-black uppercase">Mesas</span>
-                            </div>
-                        </label>
-                        <label class="cursor-pointer">
-                            <input type="radio" name="tipo" value="Otras" class="peer hidden">
-                            <div class="peer-checked:bg-primary peer-checked:text-white bg-slate-100 dark:bg-background-dark p-3 rounded-xl text-center transition-all border border-transparent">
-                                <span class="text-[10px] font-black uppercase">Otras</span>
-                            </div>
-                        </label>
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Fecha de Ingreso</label>
-                        <input type="date" id="fecha" required class="w-full bg-slate-50 dark:bg-background-dark border-slate-200 dark:border-border-dark rounded-xl py-3 text-white font-bold outline-none">
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Monto Recaudado</label>
-                        <input type="tel" id="monto" oninput="formatearMonto(this)" placeholder="0" required class="w-full bg-slate-50 dark:bg-background-dark border-slate-200 dark:border-border-dark rounded-xl py-4 px-5 text-2xl font-black text-primary focus:ring-primary outline-none">
-                    </div>
-                    <button type="submit" class="w-full bg-primary text-white py-4 rounded-xl font-black text-lg shadow-xl shadow-primary/20 active:scale-95 transition-all uppercase">Guardar Dato</button>
-                </form>
-            </div>
-        </section>
-
-        <!-- HISTORIAL -->
-        <section id="historialPanel" class="content-panel p-4 space-y-4">
-            <div class="flex flex-wrap gap-2 mb-4">
-                <button id="btnMin" class="bg-white dark:bg-surface-dark border border-border-dark px-4 py-2 rounded-full text-[10px] font-black uppercase text-white">Expandir / Min</button>
-                <input type="text" id="filtro" placeholder="Buscar fecha..." class="flex-1 bg-white dark:bg-surface-dark border-slate-200 dark:border-border-dark rounded-full px-5 py-2 text-xs text-white">
-            </div>
-
-            <div id="tablaContainer" class="space-y-6"></div>
-
-            <!-- GESTIÓN -->
-            <div class="mt-12 p-6 bg-white dark:bg-surface-dark rounded-[2rem] border border-border-dark space-y-6">
-                <h4 class="text-[10px] font-black uppercase text-slate-400 flex items-center gap-2">
-                    <span class="material-symbols-outlined text-sm">settings_suggest</span> Mantenimiento y Backups
-                </h4>
-                <div class="grid grid-cols-2 gap-3">
-                    <button id="btnExportarJson" class="flex flex-col items-center p-4 bg-primary/10 rounded-2xl border border-primary/20 text-primary active:scale-95 transition-all">
-                        <span class="material-symbols-outlined mb-1 text-2xl">file_download</span>
-                        <span class="text-[9px] font-black uppercase text-center leading-tight">Exportar JSON</span>
-                    </button>
-                    <button id="btnImportarTrigger" class="flex flex-col items-center p-4 bg-accent-amber/10 rounded-2xl border border-accent-amber/20 text-accent-amber active:scale-95 transition-all">
-                        <span class="material-symbols-outlined mb-1 text-2xl">file_upload</span>
-                        <span class="text-[9px] font-black uppercase text-center leading-tight">Importar JSON</span>
-                    </button>
-                    <button id="btnLimpiar" class="col-span-2 p-4 bg-red-500/10 rounded-2xl border border-red-500/20 text-red-500 font-black text-[11px] uppercase active:scale-95 transition-all">
-                        Vaciar Nube y Archivar Todo
-                    </button>
+        <!-- Features Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+            <div class="p-5 rounded-2xl bg-slate-900/40 border border-slate-800/60 flex items-start gap-3">
+                <div class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-music"></i>
                 </div>
-                <input type="file" id="jsonFileInput" class="hidden" accept=".json">
+                <div>
+                    <h4 class="font-bold text-xs uppercase text-slate-200">Audio 100% Limpio</h4>
+                    <p class="text-xs text-slate-400 mt-1">Extracción directa del flujo de audio original con metadatos incrustados.</p>
+                </div>
             </div>
-        </section>
 
-        <!-- CARPETAS -->
-        <section id="archiveroPanel" class="content-panel p-4 space-y-4">
-            <h3 class="text-lg font-black uppercase text-white">Carpetas Archivadas</h3>
-            <div id="archiveroContainer" class="space-y-3"></div>
-        </section>
-
-        <!-- IMPORTAR REPORTE -->
-        <section id="importarPanel" class="content-panel p-4">
-            <div class="bg-white dark:bg-surface-dark p-8 rounded-[2.5rem] border border-border-dark shadow-xl">
-                <h3 class="text-lg font-black mb-4 text-white uppercase flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary">description</span> Importar Reporte
-                </h3>
-                <textarea id="importText" rows="8" class="w-full bg-slate-100 dark:bg-background-dark border-border-dark rounded-2xl p-4 text-xs mb-4 text-white font-mono outline-none" placeholder="Pega el texto aquí..."></textarea>
-                <button id="btnProcesarTexto" class="w-full bg-primary text-white py-4 rounded-xl font-black uppercase active:scale-95 transition-all">Procesar e Importar</button>
+            <div class="p-5 rounded-2xl bg-slate-900/40 border border-slate-800/60 flex items-start gap-3">
+                <div class="w-8 h-8 rounded-lg bg-orange-500/10 text-orange-400 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-sliders"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-xs uppercase text-slate-200">Bitrates Personalizados</h4>
+                    <p class="text-xs text-slate-400 mt-1">Elige entre 128kbps, 192kbps, 256kbps o hasta 320kbps de máxima calidad.</p>
+                </div>
             </div>
-        </section>
 
-        <!-- NOTAS -->
-        <section id="notasPanel" class="content-panel">
-            <div class="p-6 bg-white dark:bg-background-dark border-b border-border-dark shadow-sm">
-                <textarea id="notaMsg" class="w-full bg-slate-100 dark:bg-surface-dark border-border-dark rounded-2xl p-4 text-sm min-h-[100px] text-white outline-none" placeholder="Escribe una nota para el equipo..."></textarea>
-                <button id="btnNota" class="w-full mt-3 bg-primary text-white py-4 rounded-xl font-black text-xs uppercase shadow-lg active:scale-95 transition-all">Publicar Nota</button>
+            <div class="p-5 rounded-2xl bg-slate-900/40 border border-slate-800/60 flex items-start gap-3">
+                <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-mobile-screen-button"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-xs uppercase text-slate-200">Cualquier Dispositivo</h4>
+                    <p class="text-xs text-slate-400 mt-1">Compatible con teléfonos móviles, tablets y computadoras de escritorio.</p>
+                </div>
             </div>
-            <div id="notesContainer" class="p-4 space-y-4"></div>
-        </section>
-
+        </div>
     </main>
 
-    <!-- TAB BAR -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-background-dark/90 backdrop-blur-xl border-t border-slate-200 dark:border-border-dark px-6 pb-10 pt-4 z-50">
-        <div class="flex items-center justify-between max-w-2xl mx-auto overflow-x-auto no-scrollbar gap-4">
-            <button class="nav-btn flex flex-col items-center gap-1 text-primary scale-110 shrink-0" data-target="agregarPanel">
-                <span class="material-symbols-outlined">add_box</span>
-                <span class="text-[9px] font-black uppercase">Agregar</span>
-            </button>
-            <button class="nav-btn flex flex-col items-center gap-1 text-slate-400 shrink-0" data-target="historialPanel">
-                <span class="material-symbols-outlined">history</span>
-                <span class="text-[9px] font-black uppercase">Historial</span>
-            </button>
-            <button class="nav-btn flex flex-col items-center gap-1 text-slate-400 shrink-0" data-target="archiveroPanel">
-                <span class="material-symbols-outlined">folder_zip</span>
-                <span class="text-[9px] font-black uppercase">Carpetas</span>
-            </button>
-            <button class="nav-btn flex flex-col items-center gap-1 text-slate-400 shrink-0" data-target="importarPanel">
-                <span class="material-symbols-outlined">upload_file</span>
-                <span class="text-[9px] font-black uppercase">Importar</span>
-            </button>
-            <button class="nav-btn flex flex-col items-center gap-1 text-slate-400 shrink-0 relative" data-target="notasPanel">
-                <span class="material-symbols-outlined">forum</span>
-                <span id="ind-notas" class="absolute top-0 right-0 size-2 bg-accent-amber rounded-full hidden"></span>
-                <span class="text-[9px] font-black uppercase">Notas</span>
-            </button>
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 bg-slate-950/80 py-6 text-center text-xs text-slate-500">
+        <div class="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p>Convertidor de YouTube a MP3 — Extractor de Audio</p>
+            <p class="text-slate-400">Guarda tus audios localmente en tu dispositivo.</p>
         </div>
-    </nav>
-
-    <!-- MODAL ARCHIVO -->
-    <div id="archivoModal" class="fixed inset-0 z-[100] bg-background-dark hidden flex-col h-screen w-full">
-        <header class="p-4 border-b border-border-dark flex justify-between items-center bg-surface-dark shrink-0">
-            <div class="flex items-center gap-3">
-                <span class="material-symbols-outlined text-primary">folder_open</span>
-                <h3 id="archivoModalTitulo" class="text-sm font-black uppercase text-white leading-none">Detalle Carpeta</h3>
-            </div>
-            <button onclick="cerrarArchivo()" class="bg-red-500/20 text-red-500 px-4 py-2 rounded-full text-[10px] font-black uppercase">Cerrar</button>
-        </header>
-        <div id="archivoModalContenido" class="flex-1 overflow-y-auto p-4 space-y-6 pb-24"></div>
-    </div>
-
-    <!-- MODAL CONFIRMACIÓN -->
-    <div id="confirmModal" class="fixed inset-0 z-[100] bg-background-dark/90 backdrop-blur-sm hidden items-center justify-center p-6 text-center">
-        <div class="w-full max-w-sm bg-surface-dark p-8 rounded-[2.5rem] border border-border-dark shadow-2xl">
-            <h3 id="confirmTitle" class="text-lg font-black mb-2 text-white uppercase tracking-tighter">¿Confirmar?</h3>
-            <p id="confirmMsg" class="text-slate-400 text-sm mb-8 leading-relaxed"></p>
-            <div class="flex gap-3">
-                <button id="confirmBtnYes" class="flex-1 bg-red-500 text-white py-4 rounded-xl font-black uppercase text-xs">Confirmar</button>
-                <button id="confirmBtnNo" class="flex-1 bg-slate-800 text-slate-400 py-4 rounded-xl font-black uppercase text-xs">Cancelar</button>
-            </div>
-        </div>
-    </div>
+    </footer>
 
     <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // --- CONFIGURACIÓN ---
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz_kCb4aEe437zHGbRqnjCibw1NtAqfCbTNmsVPn9jaZOPBFaZ6-FwmiTLqVxq39X1P/exec';
-        
-        let datos = [], notes = [], divisores = {};
-        let archivero = JSON.parse(localStorage.getItem('carpetas_recaudacion_pro_v3') || '[]');
-        let minimizado = true;
-        let currentUser = '';
-        let debounceTimer;
+        const form = document.getElementById('convertForm');
+        const urlInput = document.getElementById('youtubeUrl');
+        const pasteBtn = document.getElementById('pasteBtn');
+        const submitBtn = document.getElementById('submitBtn');
+        const loadingState = document.getElementById('loadingState');
+        const statusMessage = document.getElementById('statusMessage');
+        const errorState = document.getElementById('errorState');
+        const errorMessage = document.getElementById('errorMessage');
+        const previewCard = document.getElementById('previewCard');
+        const previewThumb = document.getElementById('previewThumb');
+        const previewTitle = document.getElementById('previewTitle');
+        const previewAuthor = document.getElementById('previewAuthor');
+        const previewDuration = document.getElementById('previewDuration');
+        const directDownloadBtn = document.getElementById('directDownloadBtn');
 
-        const fFec = (f, incluyeHora = false) => {
-            if (!f) return '';
-            const d = incluyeHora ? new Date(f) : new Date(f + 'T12:00:00');
-            const opciones = { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' };
-            if (incluyeHora) { opciones.hour = '2-digit'; opciones.minute = '2-digit'; }
-            let res = d.toLocaleDateString('es-ES', opciones);
-            return res.charAt(0).toUpperCase() + res.slice(1);
-        };
-
-        // AQUÍ EL CAMBIO CLAVE: Usamos Math.round en lugar de Math.floor
-        // Esto permite que el número en pantalla represente exactamente 
-        // a la suma pura en segundo plano.
-        const fNum = (n) => `$${Math.round(n || 0).toLocaleString('es-ES')}`;
-        
-        window.formatearMonto = (input) => {
-            let v = input.value.replace(/\D/g, '');
-            input.value = v ? parseInt(v).toLocaleString('es-ES') : '';
-        };
-
-        const showToast = (msg, icon = 'check_circle') => {
-            const c = document.getElementById('toast-container');
-            const t = document.createElement('div');
-            t.className = 'toast';
-            t.innerHTML = `<span class="material-symbols-outlined text-green-400">${icon}</span> ${msg}`;
-            c.appendChild(t);
-            setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 3000);
-        };
-
-        const customConfirm = (title, msg) => new Promise(resolve => {
-            const m = document.getElementById('confirmModal');
-            document.getElementById('confirmTitle').textContent = title;
-            document.getElementById('confirmMsg').textContent = msg;
-            m.classList.remove('hidden'); m.classList.add('flex');
-            document.getElementById('confirmBtnYes').onclick = () => { m.classList.add('hidden'); resolve(true); };
-            document.getElementById('confirmBtnNo').onclick = () => { m.classList.add('hidden'); resolve(false); };
-        });
-
-        const showLoad = (s, msg = "Sincronizando...") => {
-            document.getElementById('loaderMsg').textContent = msg;
-            document.getElementById('globalLoader').style.display = s ? 'flex' : 'none';
-        };
-
-        // --- CONEXIÓN API ---
-        async function post(data) {
-            return fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify(data) }).then(r => r.json());
-        }
-
-        async function cargarTodo(loader = true) {
-            if(loader) showLoad(true);
+        // Paste button helper
+        pasteBtn.addEventListener('click', async () => {
             try {
-                const url = new URL(SCRIPT_URL);
-                const [d, n, v] = await Promise.all([
-                    fetch(url + "?action=get").then(r => r.json()),
-                    fetch(url + "?action=getNotes").then(r => r.json()),
-                    fetch(url + "?action=getDivisores").then(r => r.json())
-                ]);
-
-                // --- DETECCIÓN DE CAMBIOS PARA TOAST ---
-                const nuevosDatos = d.data || [];
-                const nuevasNotas = n.data || [];
-                const nuevosDivisores = v.data || {};
-
-                // Creamos una "firma" de los datos actuales y los nuevos para comparar
-                const firmaActual = JSON.stringify({ datos, notes, divisores });
-                const firmaNueva = JSON.stringify({ datos: nuevosDatos, notes: nuevasNotas, divisores: nuevosDivisores });
-
-                // Solo si algo cambió Y NO es la primera carga (loader=false indica auto-carga)
-                if (firmaActual !== firmaNueva) {
-                    datos = nuevosDatos;
-                    notes = nuevasNotas;
-                    divisores = nuevosDivisores;
-                    render(); // Solo redibujamos si hubo cambios para evitar parpadeos
-                    
-                    if (!loader) {
-                        showToast("Nuevos datos sincronizados", "sync");
-                    }
+                const text = await navigator.clipboard.readText();
+                if (text) {
+                    urlInput.value = text;
+                    urlInput.focus();
                 }
-
-            } catch(e) { 
-                if(loader) showToast("Error de conexión", "error"); 
+            } catch (err) {
+                // Clipboard permissions might be denied
+                urlInput.focus();
             }
-            finally { if(loader) showLoad(false); }
-        }
-
-        // --- RENDERIZADO ---
-        function render() {
-            const totalRec = datos.reduce((s, d) => s + d.monto, 0);
-            document.getElementById('tot-rec').textContent = fNum(totalRec);
-            
-            const container = document.getElementById('tablaContainer');
-            container.innerHTML = '';
-            
-            const grouped = datos.reduce((acc, d) => { (acc[d.fecha] = acc[d.fecha] || []).push(d); return acc; }, {});
-            const sortedDates = Object.keys(grouped).sort((a,b) => new Date(b) - new Date(a));
-            
-            let totalGeneralPtos = 0;
-            sortedDates.forEach((fecha, i) => {
-                const diaTot = grouped[fecha].reduce((s, d) => s + d.monto, 0);
-                const divVal = divisores[fecha] || 0;
-                
-                // Mantenemos el decimal puro para la suma total
-                const resDiv = divVal > 0 ? diaTot / divVal : 0;
-                totalGeneralPtos += resDiv;
-
-                if (minimizado && i > 0 && !document.getElementById('filtro').value) return;
-                container.innerHTML += crearCardFecha(fecha, grouped[fecha], divVal, resDiv, true);
-            });
-            
-            document.getElementById('tot-div').textContent = fNum(totalGeneralPtos);
-            renderNotes();
-            renderArchivero();
-        }
-
-        function crearCardFecha(fecha, registros, divVal, resDiv, editable) {
-            const diaTot = registros.reduce((s, d) => s + d.monto, 0);
-            const rows = registros.map(d => `
-                <div class="flex justify-between items-center py-3 border-b border-border-dark/30 last:border-0">
-                    <div>
-                        ${editable ? `
-                            <select onchange="silenciosoTipo(${d.originalIndex}, this.value)" class="bg-transparent text-primary select-edit border-none focus:ring-0 p-0 outline-none cursor-pointer">
-                                <option class="bg-surface-dark" value="Máquinas" ${d.tipo === 'Máquinas' ? 'selected' : ''}>Máquinas</option>
-                                <option class="bg-surface-dark" value="Mesas" ${d.tipo === 'Mesas' ? 'selected' : ''}>Mesas</option>
-                                <option class="bg-surface-dark" value="Otras" ${d.tipo === 'Otras' ? 'selected' : ''}>Otras</option>
-                            </select>
-                        ` : `<span class="text-[9px] font-black text-primary uppercase leading-none">${d.tipo}</span>`}
-                        
-                        ${editable ? `
-                        <div class="flex items-center">
-                            <span class="text-sm font-bold text-white mr-1">$</span>
-                            <input type="tel" 
-                                value="${Math.round(d.monto).toLocaleString('es-ES')}" 
-                                oninput="formatearMonto(this); silenciosoMonto(${d.originalIndex}, this.value)"
-                                class="bg-transparent border-none p-0 text-sm font-bold text-white focus:ring-0 w-28 outline-none placeholder-slate-600">
-                        </div>
-                        ` : `<p class="text-sm font-bold text-white">${fNum(d.monto)}</p>`}
-                    </div>
-                    ${editable ? `<button onclick="borrarRegistro(${d.originalIndex})" class="text-red-500 opacity-20 hover:opacity-100 transition-all"><span class="material-symbols-outlined text-sm">delete</span></button>` : ''}
-                </div>`).join('');
-
-            return `
-                <div class="bg-white dark:bg-surface-dark rounded-[2.5rem] border border-border-dark overflow-hidden transition-all">
-                    <div class="p-5 bg-background-dark/40 border-b border-border-dark flex justify-between items-center">
-                        <h4 class="text-xs font-black uppercase text-primary tracking-tighter">${fFec(fecha)}</h4>
-                        <button onclick="copiarDia('${fecha}')" class="text-slate-500 hover:text-white transition-colors"><span class="material-symbols-outlined text-sm">content_copy</span></button>
-                    </div>
-                    <div class="px-6 py-2">${rows}</div>
-                    <div class="p-6 bg-background-dark/20 border-t border-border-dark grid grid-cols-2 gap-4">
-                        <div>
-                            <span class="text-[9px] font-black text-slate-500 uppercase block leading-none mb-1">Total Noche</span>
-                            <span id="total-dia-${fecha}" class="text-lg font-black text-white">${fNum(diaTot)}</span>
-                        </div>
-                        <div class="text-right">
-                            <div class="flex flex-col items-end">
-                                <span class="text-[9px] font-black text-primary uppercase block leading-none mb-1">Ptos Div:</span>
-                                ${editable ? `
-                                <input type="number" step="any" value="${divVal || ''}" 
-                                    oninput="silenciosoDivisor('${fecha}', this.value)" 
-                                    placeholder="0"
-                                    class="w-20 bg-background-dark border border-border-dark rounded-lg text-center text-accent-amber font-black text-xs py-1 outline-none focus:ring-1 focus:ring-accent-amber">
-                                ` : `<span class="text-white font-black">${divVal}</span>`}
-                                <span id="res-${fecha}" class="text-xl font-black text-accent-amber mt-1">${fNum(resDiv)}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-        }
-
-        // --- LÓGICA DE EDICIÓN EN TIEMPO REAL ---
-        
-        const enviarActualizacion = (index, item) => {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(async () => {
-                await post({ 
-                    action: 'update', 
-                    index: index, 
-                    fecha: item.fecha,
-                    tipo: item.tipo, 
-                    monto: item.monto 
-                });
-                showToast("Guardado en Nube", "cloud_done");
-            }, 1000); 
-        };
-
-        window.silenciosoTipo = (index, nuevoTipo) => {
-            const item = datos.find(d => d.originalIndex === index);
-            if (item) {
-                item.tipo = nuevoTipo; 
-                render(); 
-                enviarActualizacion(index, item);
-            }
-        };
-
-        window.silenciosoMonto = (index, valor) => {
-            const v = parseFloat(valor.replace(/\./g, '')) || 0;
-            const item = datos.find(d => d.originalIndex === index);
-            if (item) item.monto = v;
-
-            const fecha = item.fecha;
-            const itemsDia = datos.filter(d => d.fecha === fecha);
-            const nuevoTotalDia = itemsDia.reduce((s, d) => s + d.monto, 0);
-            const divVal = divisores[fecha] || 0;
-            
-            const elTotalDia = document.getElementById(`total-dia-${fecha}`);
-            if (elTotalDia) elTotalDia.textContent = fNum(nuevoTotalDia);
-            
-            const elRes = document.getElementById(`res-${fecha}`);
-            if (elRes) elRes.textContent = fNum(divVal > 0 ? nuevoTotalDia / divVal : 0);
-
-            const totalRec = datos.reduce((s, d) => s + d.monto, 0);
-            document.getElementById('tot-rec').textContent = fNum(totalRec);
-            
-            let totalGeneralPtos = 0;
-            const grouped = datos.reduce((acc, d) => { (acc[d.fecha] = acc[d.fecha] || []).push(d); return acc; }, {});
-            Object.keys(grouped).forEach(f => {
-                const tD = grouped[f].reduce((s, d) => s + d.monto, 0);
-                const dV = divisores[f] || 0;
-                if(dV > 0) totalGeneralPtos += (tD / dV);
-            });
-            document.getElementById('tot-div').textContent = fNum(totalGeneralPtos);
-
-            enviarActualizacion(index, item);
-        };
-
-        window.silenciosoDivisor = (fecha, valor) => {
-            const v = parseFloat(valor) || 0;
-            divisores[fecha] = v;
-            
-            const diaTot = datos.filter(d => d.fecha === fecha).reduce((s,d) => s + d.monto, 0);
-            const res = v > 0 ? diaTot / v : 0;
-            document.getElementById(`res-${fecha}`).textContent = fNum(res);
-            
-            let totalGeneralPtos = 0;
-            const grouped = datos.reduce((acc, d) => { (acc[d.fecha] = acc[d.fecha] || []).push(d); return acc; }, {});
-            Object.keys(grouped).forEach(f => {
-                const tD = grouped[f].reduce((s, d) => s + d.monto, 0);
-                const dV = divisores[f] || 0;
-                if(dV > 0) totalGeneralPtos += (tD / dV);
-            });
-            document.getElementById('tot-div').textContent = fNum(totalGeneralPtos);
-
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(async () => {
-                await post({ action: 'updateDivisor', fecha, divisor: v });
-                showToast("Divisor guardado", "cloud_done");
-            }, 1000);
-        };
-
-        // --- GESTIÓN DE ARCHIVERO Y OTROS ---
-        function renderArchivero() {
-            const container = document.getElementById('archiveroContainer');
-            if(archivero.length === 0) {
-                container.innerHTML = `<p class="text-center py-10 text-[10px] uppercase opacity-20 text-white">No hay carpetas</p>`;
-                return;
-            }
-            container.innerHTML = archivero.map((arc, idx) => `
-                <div class="bg-surface-dark border border-border-dark p-5 rounded-3xl flex justify-between items-center shadow-md">
-                    <div>
-                        <h5 class="text-xs font-black text-white uppercase">${arc.rango}</h5>
-                        <p class="text-[10px] font-bold text-slate-500 mt-1 uppercase">${arc.totalRec} | ${arc.totalPtos}</p>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="verArchivo(${idx})" class="size-10 rounded-xl bg-primary text-white flex items-center justify-center active:scale-95 transition-all"><span class="material-symbols-outlined">visibility</span></button>
-                        <button onclick="eliminarCarpeta(${idx})" class="size-10 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center active:scale-95 transition-all"><span class="material-symbols-outlined">delete</span></button>
-                    </div>
-                </div>`).join('');
-        }
-
-        window.verArchivo = (idx) => {
-            const arc = archivero[idx];
-            const cont = document.getElementById('archivoModalContenido');
-            document.getElementById('archivoModalTitulo').textContent = `Carpeta: ${arc.rango}`;
-            cont.innerHTML = `
-                <div class="grid grid-cols-2 gap-4 mb-6 text-center">
-                    <div class="bg-primary/10 border border-primary/20 p-5 rounded-[2rem]">
-                        <span class="text-[9px] font-black text-primary uppercase block mb-1 leading-none">Recaudación Final</span>
-                        <span class="text-xl font-black text-white">${arc.totalRec}</span>
-                    </div>
-                    <div class="bg-accent-amber/10 border border-accent-amber/20 p-5 rounded-[2rem]">
-                        <span class="text-[9px] font-black text-accent-amber uppercase block mb-1 leading-none">Puntos Final</span>
-                        <span class="text-xl font-black text-white">${arc.totalPtos}</span>
-                    </div>
-                </div>
-            `;
-            const grouped = arc.data.reduce((acc, d) => { (acc[d.fecha] = acc[d.fecha] || []).push(d); return acc; }, {});
-            const sorted = Object.keys(grouped).sort((a,b) => new Date(b) - new Date(a));
-            sorted.forEach(f => {
-                const diaTot = grouped[f].reduce((s,d) => s + d.monto, 0);
-                const divVal = arc.divisores[f] || 0;
-                cont.innerHTML += crearCardFecha(f, grouped[f], divVal, divVal>0?diaTot/divVal:0, false);
-            });
-            document.body.classList.add('modal-open');
-            document.getElementById('archivoModal').classList.replace('hidden', 'flex');
-        };
-
-        window.cerrarArchivo = () => {
-            document.body.classList.remove('modal-open');
-            document.getElementById('archivoModal').classList.replace('flex', 'hidden');
-        };
-
-        window.eliminarCarpeta = async (idx) => {
-            if(await customConfirm("¿Borrar Carpeta?", "Se eliminará permanentemente de este equipo.")) {
-                archivero.splice(idx, 1);
-                localStorage.setItem('carpetas_recaudacion_pro_v3', JSON.stringify(archivero));
-                renderArchivero();
-            }
-        };
-
-        document.getElementById('btnLimpiar').onclick = async () => {
-            if(datos.length === 0) return;
-            if(await customConfirm("¿VACIAR Y ARCHIVAR?", "Se borrará todo de la nube. ¿Seguro?")) {
-                showLoad(true, "Archivando...");
-                const sorted = datos.map(d => d.fecha).sort();
-                const totalR = datos.reduce((s,d) => s + d.monto, 0);
-                
-                archivero.push({
-                    rango: `${fFec(sorted[0])} - ${fFec(sorted[sorted.length-1])}`,
-                    totalRec: fNum(totalR),
-                    totalPtos: document.getElementById('tot-div').textContent,
-                    data: JSON.parse(JSON.stringify(datos)),
-                    divisores: JSON.parse(JSON.stringify(divisores))
-                });
-                localStorage.setItem('carpetas_recaudacion_pro_v3', JSON.stringify(archivero));
-
-                await post({ 
-                    action: 'importAll', 
-                    data: { datos: [], notes: notes, divisores: {} } 
-                });
-
-                await cargarTodo();
-                showToast("Archivado Correctamente");
-            }
-        };
-
-        document.getElementById('btnExportarJson').onclick = () => {
-            const backup = { datos, notes, divisores, archivero };
-            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `BACKUP_${new Date().toISOString().slice(0,10)}.json`;
-            a.click();
-            showToast("Backup Descargado");
-        };
-
-        document.getElementById('btnImportarTrigger').onclick = () => document.getElementById('jsonFileInput').click();
-        document.getElementById('jsonFileInput').onchange = (e) => {
-            const file = e.target.files[0];
-            if(!file) return;
-            const reader = new FileReader();
-            reader.onload = async (ev) => {
-                try {
-                    const content = JSON.parse(ev.target.result);
-                    if(await customConfirm("¿Restaurar Backup?", "Sobrescribirá datos actuales.")) {
-                        showLoad(true, "Restaurando...");
-                        await post({ action: 'importAll', data: content });
-                        if(content.archivero) {
-                            archivero = content.archivero;
-                            localStorage.setItem('carpetas_recaudacion_pro_v3', JSON.stringify(archivero));
-                        }
-                        await cargarTodo();
-                        showToast("Sistema Restaurado");
-                    }
-                } catch(err) { showToast("JSON Inválido", "error"); }
-            };
-            reader.readAsText(file);
-            e.target.value = '';
-        };
-
-        document.getElementById('btnProcesarTexto').onclick = async () => {
-            const texto = document.getElementById('importText').value;
-            if(!texto) return;
-            showLoad(true, "Importando...");
-            const lines = texto.split('\n');
-            let curFecha = null;
-            for(let l of lines) {
-                const fMatch = l.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-                if(fMatch) curFecha = `${fMatch[3]}-${fMatch[2]}-${fMatch[1]}`;
-                const mMatch = l.match(/- (Máquinas|Mesas|Otras|Otros):\s*\$?([\d.]+)/);
-                if(mMatch && curFecha) {
-                    await post({ action:'add', fecha:curFecha, tipo:mMatch[1].replace('Otros','Otras'), monto:parseFloat(mMatch[2].replace(/\./g,'')) });
-                }
-            }
-            document.getElementById('importText').value = '';
-            await cargarTodo();
-            showToast("Texto Importado");
-        };
-
-        function renderNotes() {
-            const container = document.getElementById('notesContainer');
-            container.innerHTML = notes.slice().reverse().map(n => {
-                const autor = n.autor || 'Desconocido';
-                const inicial = autor.charAt(0).toUpperCase();
-                return `
-                <div class="bg-surface-dark p-6 rounded-[2rem] border-l-4 border-primary relative shadow-md">
-                    <button onclick="borrarNota(${n.originalIndex})" class="absolute top-4 right-4 text-red-500 opacity-20 hover:opacity-100 transition-all"><span class="material-symbols-outlined text-sm">delete</span></button>
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="size-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-black border border-primary/20">${inicial}</div>
-                        <div>
-                            <p class="text-xs font-black text-white uppercase leading-none">${autor}</p>
-                            <p class="text-[9px] font-bold text-slate-500 uppercase mt-1 tracking-widest">${fFec(n.fecha, true)}</p>
-                        </div>
-                    </div>
-                    <p class="text-sm text-slate-300 leading-relaxed font-medium">${n.mensaje}</p>
-                </div>`;
-            }).join('');
-        }
-
-        window.borrarRegistro = async (idx) => {
-            if(await customConfirm("¿Borrar?", "Se borrará permanentemente.")) {
-                showLoad(true); await post({ action:'delete', index: idx }); await cargarTodo();
-            }
-        };
-
-        window.borrarNota = async (idx) => {
-            if(await customConfirm("¿Borrar Nota?", "")) {
-                showLoad(true); await post({ action:'deleteNote', index: idx }); await cargarTodo();
-            }
-        };
-
-        window.copiarDia = (fecha) => {
-            const items = datos.filter(d => d.fecha === fecha);
-            const total = items.reduce((s,d) => s + d.monto, 0);
-            const div = divisores[fecha] || 0;
-            
-            // EL REDONDEO APLICADO A LA HORA DE COPIAR EL REPORTE
-            const res = div > 0 ? total / div : 0;
-            
-            let txt = `📊 REPORTE ${fFec(fecha)}\n`;
-            items.forEach(i => txt += `• ${i.tipo}: ${fNum(i.monto)}\n`);
-            txt += `💰 TOTAL: ${fNum(total)}\n✅ RES: ${fNum(res)}`;
-            navigator.clipboard.writeText(txt).then(() => showToast("Copiado"));
-        };
-
-        document.getElementById('loginForm').onsubmit = (e) => {
-            e.preventDefault();
-            if(document.getElementById('password').value === '1234') {
-                currentUser = document.getElementById('username').value;
-                document.getElementById('loginOverlay').classList.add('hidden');
-                document.getElementById('mainContent').classList.remove('hidden');
-                document.getElementById('activeUserBadge').textContent = `SESIÓN: ${currentUser}`;
-                document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
-                cargarTodo();
-                // CONFIGURACIÓN DE ACTUALIZACIÓN AUTOMÁTICA CADA 10 SEGUNDOS
-                setInterval(() => cargarTodo(false), 10000); 
-            } else { alert("Clave Incorrecta"); }
-        };
-
-        document.getElementById('btnNota').onclick = async () => {
-            const msg = document.getElementById('notaMsg').value.trim();
-            if(!msg) return;
-            showLoad(true, "Publicando...");
-            await post({ action:'addNote', autor: currentUser, mensaje: msg });
-            document.getElementById('notaMsg').value = ''; await cargarTodo();
-            showToast("Nota publicada");
-        };
-
-        document.getElementById('agregarForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const mStr = document.getElementById('monto').value.replace(/\./g,'');
-            if(!mStr) return;
-            showLoad(true, "Guardando...");
-            await post({ action: 'add', tipo: document.querySelector('input[name="tipo"]:checked').value, fecha: document.getElementById('fecha').value, monto: parseInt(mStr) });
-            document.getElementById('monto').value = ''; await cargarTodo();
-            showToast("Registro guardado");
-        };
-
-        document.querySelectorAll('.nav-btn').forEach(btn => {
-            btn.onclick = () => {
-                const target = btn.dataset.target;
-                document.querySelectorAll('.content-panel').forEach(p => p.classList.remove('active'));
-                document.getElementById(target).classList.add('active');
-                document.querySelectorAll('.nav-btn').forEach(b => {
-                    b.classList.remove('text-primary', 'scale-110');
-                    b.classList.add('text-slate-400');
-                });
-                btn.classList.add('text-primary', 'scale-110');
-                btn.classList.remove('text-slate-400');
-                window.scrollTo({top: 0, behavior: 'smooth'});
-            };
         });
 
-        document.getElementById('btnMin').onclick = () => { minimizado = !minimizado; render(); };
-        document.getElementById('logoutBtn').onclick = () => location.reload();
-    });
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const url = urlInput.value.trim();
+            if (!url) return;
+
+            const bitrate = document.querySelector('input[name="bitrate"]:checked')?.value || '192';
+
+            // Reset UI states
+            errorState.classList.add('hidden');
+            previewCard.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
+            statusMessage.textContent = 'Analizando video...';
+
+            try {
+                // Step 1: Fetch metadata for preview
+                const infoRes = await fetch('/api/info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+
+                if (!infoRes.ok) {
+                    const errData = await infoRes.json().catch(() => ({}));
+                    throw new Error(errData.detail || 'No se pudo obtener información del video.');
+                }
+
+                const info = await infoRes.json();
+                previewThumb.src = info.thumbnail || '';
+                previewTitle.textContent = info.title;
+                previewAuthor.textContent = info.uploader || 'YouTube';
+                previewDuration.textContent = 'Duración: ' + (info.duration_formatted || '');
+                previewCard.classList.remove('hidden');
+
+                // Step 2: Trigger download
+                statusMessage.textContent = 'Descargando y convirtiendo audio a MP3...';
+                const downloadUrl = `/api/download?url=${encodeURIComponent(url)}&bitrate=${bitrate}`;
+                directDownloadBtn.href = downloadUrl;
+
+                // Create hidden anchor to initiate browser download automatically
+                const downloadLink = document.createElement('a');
+                downloadLink.href = downloadUrl;
+                downloadLink.setAttribute('download', `${info.title}.mp3`);
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+
+                statusMessage.textContent = '¡Conversión lista! Tu archivo MP3 se está guardando.';
+            } catch (err) {
+                errorMessage.textContent = err.message || 'Ocurrió un error inesperado.';
+                errorState.classList.remove('hidden');
+            } finally {
+                loadingState.classList.add('hidden');
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+            }
+        });
     </script>
 </body>
 </html>
