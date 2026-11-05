@@ -33,14 +33,6 @@
             background: radial-gradient(circle at 50% 0%, rgba(244, 63, 94, 0.15), transparent 70%),
                         radial-gradient(circle at 10% 90%, rgba(99, 102, 241, 0.1), transparent 60%);
         }
-        @keyframes pulse-ring {
-            0% { transform: scale(0.95); opacity: 0.8; }
-            50% { transform: scale(1.05); opacity: 0.4; }
-            100% { transform: scale(0.95); opacity: 0.8; }
-        }
-        .animate-pulse-ring {
-            animation: pulse-ring 2s infinite ease-in-out;
-        }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col justify-between selection:bg-rose-500 selection:text-white gradient-bg">
@@ -60,9 +52,9 @@
                 </div>
             </div>
             <div class="flex items-center space-x-2">
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span id="backendBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                     <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    En línea
+                    <span id="backendBadgeText">Servicio Listo</span>
                 </span>
             </div>
         </div>
@@ -169,7 +161,7 @@
                 </div>
                 <div class="space-y-1">
                     <h4 class="font-bold text-sm text-slate-200" id="statusMessage">Procesando video...</h4>
-                    <p class="text-xs text-slate-400">Extrayendo audio y codificando en MP3. La descarga comenzará automáticamente.</p>
+                    <p class="text-xs text-slate-400" id="statusSubmessage">Extrayendo audio y codificando en MP3. La descarga comenzará automáticamente.</p>
                 </div>
             </div>
 
@@ -177,21 +169,23 @@
             <div id="errorState" class="hidden mt-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm flex items-start gap-3">
                 <i class="fa-solid fa-circle-exclamation text-rose-400 text-lg mt-0.5"></i>
                 <div class="flex-1">
-                    <h5 class="font-bold">Ocurrió un error</h5>
+                    <h5 class="font-bold" id="errorTitle">Ocurrió un error</h5>
                     <p id="errorMessage" class="text-xs text-rose-300/90 mt-0.5"></p>
+                    <div id="errorHelp" class="mt-2 text-xs text-slate-400 hidden"></div>
                 </div>
             </div>
 
             <!-- Video Preview / Success Card -->
-            <div id="previewCard" class="hidden mt-6 p-4 rounded-2xl bg-slate-950/80 border border-slate-800/90 flex flex-col sm:flex-row gap-4 items-center">
+            <div id="previewCard" class="hidden mt-6 p-5 rounded-2xl bg-slate-950/80 border border-slate-800/90 flex flex-col md:flex-row gap-4 items-center">
                 <img id="previewThumb" src="" alt="Thumbnail" class="w-28 h-20 object-cover rounded-xl border border-slate-800 shadow">
-                <div class="flex-1 text-center sm:text-left overflow-hidden">
+                <div class="flex-1 text-center md:text-left overflow-hidden">
                     <h4 id="previewTitle" class="font-bold text-sm text-slate-100 truncate"></h4>
                     <p id="previewAuthor" class="text-xs text-slate-400 mt-0.5"></p>
                     <p id="previewDuration" class="text-xs text-rose-400 font-semibold mt-1"></p>
+                    <div id="directConvertLinks" class="mt-3 flex flex-wrap gap-2 items-center justify-center md:justify-start"></div>
                 </div>
-                <div class="shrink-0">
-                    <a id="directDownloadBtn" href="#" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-2">
+                <div class="shrink-0" id="primaryActionContainer">
+                    <a id="directDownloadBtn" href="#" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-emerald-600/20">
                         <i class="fa-solid fa-arrow-down"></i> Descargar MP3
                     </a>
                 </div>
@@ -247,28 +241,52 @@
         const submitBtn = document.getElementById('submitBtn');
         const loadingState = document.getElementById('loadingState');
         const statusMessage = document.getElementById('statusMessage');
+        const statusSubmessage = document.getElementById('statusSubmessage');
         const errorState = document.getElementById('errorState');
+        const errorTitle = document.getElementById('errorTitle');
         const errorMessage = document.getElementById('errorMessage');
+        const errorHelp = document.getElementById('errorHelp');
         const previewCard = document.getElementById('previewCard');
         const previewThumb = document.getElementById('previewThumb');
         const previewTitle = document.getElementById('previewTitle');
         const previewAuthor = document.getElementById('previewAuthor');
         const previewDuration = document.getElementById('previewDuration');
         const directDownloadBtn = document.getElementById('directDownloadBtn');
+        const directConvertLinks = document.getElementById('directConvertLinks');
+
+        // Extract YouTube ID from multiple URL formats
+        function extractYouTubeId(url) {
+            if (!url) return null;
+            const regex = /(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i;
+            const match = url.match(regex);
+            return match ? match[1] : null;
+        }
 
         // Paste button helper
         pasteBtn.addEventListener('click', async () => {
             try {
                 const text = await navigator.clipboard.readText();
                 if (text) {
-                    urlInput.value = text;
+                    urlInput.value = text.trim();
                     urlInput.focus();
                 }
             } catch (err) {
-                // Clipboard permissions might be denied
                 urlInput.focus();
             }
         });
+
+        // Helper to check if local/server backend is available
+        async function checkBackendAvailable() {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 2000);
+                const res = await fetch('/api/health', { method: 'GET', signal: controller.signal });
+                clearTimeout(timeoutId);
+                return res.ok;
+            } catch (e) {
+                return false;
+            }
+        }
 
         // Form submission
         form.addEventListener('submit', async (e) => {
@@ -276,59 +294,160 @@
             const url = urlInput.value.trim();
             if (!url) return;
 
+            const videoId = extractYouTubeId(url);
+            if (!videoId) {
+                showError('Enlace inválido', 'Por favor ingresa un enlace válido de YouTube (ejemplo: https://www.youtube.com/watch?v=... o https://youtu.be/...)');
+                return;
+            }
+
             const bitrate = document.querySelector('input[name="bitrate"]:checked')?.value || '192';
 
             // Reset UI states
             errorState.classList.add('hidden');
             previewCard.classList.add('hidden');
             loadingState.classList.remove('hidden');
+            directConvertLinks.innerHTML = '';
             submitBtn.disabled = true;
             submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
             statusMessage.textContent = 'Analizando video...';
+            statusSubmessage.textContent = 'Verificando disponibilidad en YouTube...';
 
+            // 1. Try local backend first
+            let hasBackend = false;
             try {
-                // Step 1: Fetch metadata for preview
                 const infoRes = await fetch('/api/info', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ url })
                 });
 
-                if (!infoRes.ok) {
+                if (infoRes.ok) {
+                    hasBackend = true;
+                    const info = await infoRes.json();
+                    renderSuccessBackend(info, url, bitrate);
+                    return;
+                } else if (infoRes.status !== 404 && infoRes.status !== 502) {
+                    // Backend is present but returned an error (e.g. Video unavailable)
                     const errData = await infoRes.json().catch(() => ({}));
-                    throw new Error(errData.detail || 'No se pudo obtener información del video.');
+                    const detail = errData.detail || 'No se pudo obtener información del video.';
+                    handleBackendError(detail, videoId);
+                    return;
+                }
+            } catch (err) {
+                // Backend not running or static deployment (Vercel/GitHub Pages)
+                hasBackend = false;
+            }
+
+            // 2. Fallback for Static Web Deployment (e.g., Vercel / Client-side)
+            await handleStaticFallback(url, videoId);
+        });
+
+        function handleBackendError(detail, videoId) {
+            loadingState.classList.add('hidden');
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+
+            if (detail.includes('no disponible') || detail.includes('unavailable') || detail.includes('Private video')) {
+                showError(
+                    'Video no disponible en YouTube',
+                    'El video que intentas convertir fue eliminado, es privado o tiene restricciones de derechos de autor en YouTube.',
+                    `<p class="mt-2 text-slate-400">Verifica que el video esté visible públicamente abriendo: <a href="https://www.youtube.com/watch?v=${videoId}" target="_blank" class="text-rose-400 underline font-semibold">youtube.com/watch?v=${videoId}</a></p>`
+                );
+            } else {
+                showError('Error al procesar el video', detail);
+            }
+        }
+
+        async function handleStaticFallback(url, videoId) {
+            statusMessage.textContent = 'Consultando información del video...';
+            try {
+                // Query YouTube oEmbed (works directly from browser without server backend)
+                const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
+                const oembedRes = await fetch(oembedUrl);
+
+                if (!oembedRes.ok) {
+                    throw new Error('El video no está disponible en YouTube (puede haber sido eliminado o ser privado).');
                 }
 
-                const info = await infoRes.json();
-                previewThumb.src = info.thumbnail || '';
-                previewTitle.textContent = info.title;
-                previewAuthor.textContent = info.uploader || 'YouTube';
-                previewDuration.textContent = 'Duración: ' + (info.duration_formatted || '');
+                const oembed = await oembedRes.json();
+
+                // Display info
+                previewThumb.src = oembed.thumbnail_url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+                previewTitle.textContent = oembed.title;
+                previewAuthor.textContent = oembed.author_name || 'YouTube';
+                previewDuration.textContent = 'Audio listo para descargar';
                 previewCard.classList.remove('hidden');
 
-                // Step 2: Trigger download
-                statusMessage.textContent = 'Descargando y convirtiendo audio a MP3...';
-                const downloadUrl = `/api/download?url=${encodeURIComponent(url)}&bitrate=${bitrate}`;
-                directDownloadBtn.href = downloadUrl;
+                // Provide download options
+                directDownloadBtn.textContent = 'Convertir MP3 en Alta Calidad';
+                directDownloadBtn.href = `https://ytmp3.nu/${videoId}`;
+                directDownloadBtn.target = '_blank';
 
-                // Create hidden anchor to initiate browser download automatically
-                const downloadLink = document.createElement('a');
-                downloadLink.href = downloadUrl;
-                downloadLink.setAttribute('download', `${info.title}.mp3`);
-                document.body.appendChild(downloadLink);
-                downloadLink.click();
-                document.body.removeChild(downloadLink);
+                directConvertLinks.innerHTML = `
+                    <span class="text-xs text-slate-400 w-full mb-1">Opciones rápidas de descarga directa:</span>
+                    <a href="https://ytmp3.nu/${videoId}" target="_blank" class="px-3 py-1.5 bg-rose-600/20 text-rose-300 border border-rose-500/30 hover:bg-rose-600/30 rounded-lg text-xs font-semibold transition">
+                        <i class="fa-solid fa-bolt mr-1"></i> Servidor 1 (ytmp3)
+                    </a>
+                    <a href="https://y2mate.nu/${videoId}" target="_blank" class="px-3 py-1.5 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 rounded-lg text-xs font-semibold transition">
+                        <i class="fa-solid fa-music mr-1"></i> Servidor 2 (y2mate)
+                    </a>
+                `;
 
-                statusMessage.textContent = '¡Conversión lista! Tu archivo MP3 se está guardando.';
+                statusMessage.textContent = '¡Video encontrado!';
+                statusSubmessage.textContent = 'Haz clic en el botón de descarga para guardar tu MP3.';
             } catch (err) {
-                errorMessage.textContent = err.message || 'Ocurrió un error inesperado.';
-                errorState.classList.remove('hidden');
+                showError(
+                    'Video no disponible',
+                    err.message || 'No fue posible cargar el video de YouTube.',
+                    `<p class="mt-2 text-slate-400">Asegúrate de que el video siga existiendo en YouTube visitando: <a href="https://www.youtube.com/watch?v=${videoId}" target="_blank" class="text-rose-400 underline font-semibold">ver en YouTube</a></p>`
+                );
             } finally {
                 loadingState.classList.add('hidden');
                 submitBtn.disabled = false;
                 submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
             }
-        });
+        }
+
+        function renderSuccessBackend(info, url, bitrate) {
+            previewThumb.src = info.thumbnail || '';
+            previewTitle.textContent = info.title;
+            previewAuthor.textContent = info.uploader || 'YouTube';
+            previewDuration.textContent = 'Duración: ' + (info.duration_formatted || '');
+            previewCard.classList.remove('hidden');
+
+            // Trigger download
+            statusMessage.textContent = 'Descargando y convirtiendo audio a MP3...';
+            const downloadUrl = `/api/download?url=${encodeURIComponent(url)}&bitrate=${bitrate}`;
+            directDownloadBtn.href = downloadUrl;
+            directDownloadBtn.removeAttribute('target');
+
+            // Create hidden anchor to initiate browser download automatically
+            const downloadLink = document.createElement('a');
+            downloadLink.href = downloadUrl;
+            downloadLink.setAttribute('download', `${info.title}.mp3`);
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+
+            statusMessage.textContent = '¡Conversión iniciada!';
+            statusSubmessage.textContent = 'El archivo MP3 se guardará en las descargas de tu dispositivo.';
+
+            loadingState.classList.add('hidden');
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+        }
+
+        function showError(title, message, helpHtml = null) {
+            errorTitle.textContent = title;
+            errorMessage.textContent = message;
+            if (helpHtml) {
+                errorHelp.innerHTML = helpHtml;
+                errorHelp.classList.remove('hidden');
+            } else {
+                errorHelp.classList.add('hidden');
+            }
+            errorState.classList.remove('hidden');
+        }
     </script>
 </body>
 </html>

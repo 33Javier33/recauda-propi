@@ -2,7 +2,22 @@
 
 Una herramienta completa y eficiente para convertir enlaces de YouTube en archivos de audio MP3, extrayendo el audio en alta calidad y guardándolo directamente en tu dispositivo.
 
-Ofrece tanto una **interfaz web moderna y responsiva** como una **herramienta por línea de comandos (CLI)**.
+Ofrece una **interfaz web moderna y responsiva**, soporte para despliegue estático y en la nube (Vercel, GitHub Pages) y una **herramienta por línea de comandos (CLI)** con backend en Python.
+
+---
+
+## Modos de Uso
+
+El proyecto está diseñado para funcionar de dos formas:
+
+1. **Modo Web / Despliegue en Vercel (Front-end)**:
+   - Funciona sin necesidad de configurar un servidor propio.
+   - Detecta la disponibilidad del video mediante YouTube oEmbed.
+   - Proporciona opciones de descarga y conversión directa de MP3 a tu dispositivo.
+2. **Modo Servidor Local / Full-Stack (Python + FastAPI + yt-dlp + FFmpeg)**:
+   - Extracción directa nativa con `yt-dlp` y conversión automática con `ffmpeg`.
+   - Soporte para bitrates personalizados (128, 192, 256, 320 kbps).
+   - Inyección de etiquetas ID3 y metadatos.
 
 ---
 
@@ -12,12 +27,13 @@ Ofrece tanto una **interfaz web moderna y responsiva** como una **herramienta po
 - 🎚️ **Selección de calidad (Bitrate)**: Soporte para 128 kbps, 192 kbps, 256 kbps y hasta 320 kbps.
 - 📱 **Descarga directa en tu dispositivo**: Compatible con navegadores en teléfonos móviles (Android, iOS) y ordenadores.
 - 🖼️ **Metadatos e información**: Muestra el título, autor, duración y miniatura del video antes de la conversión.
+- ☁️ **Compatible con Vercel**: Incluye configuración `vercel.json` y fallbacks en cliente.
 - 💻 **CLI Integrada**: Opción para automatizar descargas por terminal o en scripts.
 - 🏷️ **Etiquetas ID3 incrustadas**: Guarda metadatos automáticos dentro del archivo MP3 (título, autor).
 
 ---
 
-## Requisitos del Sistema
+## Requisitos para Modo Local / Backend
 
 1. **Python 3.10+**
 2. **FFmpeg** instalado en el sistema operativo:
@@ -27,7 +43,7 @@ Ofrece tanto una **interfaz web moderna y responsiva** como una **herramienta po
 
 ---
 
-## Instalación
+## Instalación y Ejecución Local
 
 1. Clona el repositorio e ingresa al directorio:
    ```bash
@@ -40,35 +56,29 @@ Ofrece tanto una **interfaz web moderna y responsiva** como una **herramienta po
    pip install -r requirements.txt
    ```
 
----
+3. Inicia el servidor web local con Uvicorn:
+   ```bash
+   python3 app.py
+   ```
+   O directamente:
+   ```bash
+   uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+   ```
 
-## Uso
-
-### 1. Aplicación Web
-
-Inicia el servidor web con Uvicorn:
-
-```bash
-python3 app.py
-```
-O directamente con uvicorn:
-```bash
-uvicorn app:app --host 0.0.0.0 --port 8000 --reload
-```
-
-Abre tu navegador en:
-```
-http://localhost:8000
-```
-
-1. Pega el enlace del video de YouTube en el campo de texto.
-2. Selecciona la calidad de audio deseada (128, 192, 256 o 320 kbps).
-3. Haz clic en **Convertir y Descargar MP3**.
-4. El archivo MP3 se descargará y guardará automáticamente en tu dispositivo.
+4. Abre tu navegador en `http://localhost:8000`.
 
 ---
 
-### 2. Línea de Comandos (CLI)
+## Despliegue en Vercel
+
+Este repositorio incluye `vercel.json` para despliegue instantáneo en Vercel:
+1. Conecta tu repositorio de GitHub a tu cuenta de Vercel.
+2. Selecciona el proyecto y despliega (Vercel detectará la configuración estática automáticamente).
+3. Tu aplicación web estará disponible de inmediato.
+
+---
+
+## Línea de Comandos (CLI)
 
 Puedes usar la herramienta por terminal `cli.py` para descargar audios sin abrir el navegador:
 
